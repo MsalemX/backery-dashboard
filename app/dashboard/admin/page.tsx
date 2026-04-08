@@ -1,27 +1,43 @@
 import PremiumChartCard from "@/components/PremiumChartCard";
-import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
+  const [customersRes, expensesRes, inventoryRes, posRecordsRes] = await Promise.all([
+    supabase.from("customers").select("id, debt, total_paid"),
+    supabase.from("expenses").select("amount"),
+    supabase.from("inventory").select("stock, threshold"),
+    supabase.from("pos_records").select("taken, returned, net"),
+  ]);
+
+  const customers = customersRes.data || [];
+  const expenses = expensesRes.data || [];
+  const inventory = inventoryRes.data || [];
+  const posRecords = posRecordsRes.data || [];
+
+  const totalCustomers = customers.length;
+  const totalDebt = customers.reduce((a, c) => a + c.debt, 0);
+  const totalPaid = customers.reduce((a, c) => a + c.total_paid, 0);
+  const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
+  const lowStockCount = inventory.filter(i => i.stock <= i.threshold).length;
+  const totalDistributed = posRecords.reduce((a, r) => a + r.net, 0);
+
   const chartData = {
-    customers: [45, 52, 48, 70, 65, 85, 82],
-    orders: [20, 35, 30, 45, 40, 55, 60],
-    flour: [120, 150, 140, 180, 170, 210, 205],
-    bread: [90, 110, 105, 130, 125, 145, 140],
-    debtPayable: [500, 450, 600, 550, 700, 650, 800],
-    debtReceivable: [1200, 1100, 1300, 1250, 1400, 1350, 1500],
-    flourDebtPayable: [30, 28, 25, 22, 18, 15, 12],
-    flourDebtReceivable: [40, 35, 45, 42, 50, 48, 55],
-    expenses: [1200, 1500, 1100, 1800, 1400, 1600, 1900],
+    customers: [40, 45, 50, 55, 60, 65, totalCustomers],
+    expenses: [1000, 1200, 1100, 1400, 1300, 1600, totalExpenses],
+    debt: [500, 600, 550, 700, 650, 800, totalDebt],
+    paid: [1000, 1100, 1200, 1300, 1200, 1400, totalPaid],
+    bread: [80, 90, 100, 110, 105, 120, totalDistributed],
+    flour: [120, 140, 130, 160, 150, 170, lowStockCount * 10],
+    flourDebt: [30, 28, 25, 22, 18, 15, 12],
+    blank: [0, 0, 0, 0, 0, 0, 0],
   };
 
   return (
     <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen">
-      {/* Header Section from Image */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
           <h1 className="text-4xl font-black text-gray-800 tracking-tight">لوحة التحكم</h1>
         </div>
-        
         <div className="flex items-center gap-4">
           <p className="text-gray-400 font-bold text-sm bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
             نظام الإدارة المركزي
@@ -29,104 +45,88 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Row 1: Primary Stats with Sparklines */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <PremiumChartCard 
-          title="إجمالي العملاء" 
-          value="1,284" 
-          subText="69 عميل جديد خلال آخر 7 أيام" 
+        <PremiumChartCard
+          title="إجمالي العملاء"
+          value={totalCustomers.toLocaleString()}
+          subText="عدد العملاء المسجلين"
           data={chartData.customers}
           color="emerald"
           type="sparkline"
           icon={<UsersIcon />}
         />
-        <PremiumChartCard 
-          title="إجمالي الطلبات" 
-          value="842" 
-          subText="زيادة بنسبة 12٪ عن الشهر الماضي" 
-          data={chartData.orders}
+        <PremiumChartCard
+          title="إجمالي الموزع (صافي)"
+          value={totalDistributed.toLocaleString()}
+          subText="قطعة خبز موزعة"
+          data={chartData.bread}
           color="blue"
           type="sparkline"
           icon={<CartIcon />}
         />
-        <PremiumChartCard 
-          title="الطحين المستخدم (كجم)" 
-          value="4,250" 
-          unit="kg"
-          subText="استهلاك مستقر هذا الأسبوع" 
+        <PremiumChartCard
+          title="أصناف ناقصة"
+          value={lowStockCount.toString()}
+          unit="صنف"
+          subText="تحت الحد الأدنى في المخزون"
           data={chartData.flour}
           color="amber"
           type="sparkline"
           icon={<ScaleIcon />}
         />
-        <PremiumChartCard 
-          title="الخبز المنتج (كجم)" 
-          value="3,820" 
-          unit="kg"
-          subText="كفاءة إنتاجية عالية" 
-          data={chartData.bread}
+        <PremiumChartCard
+          title="إجمالي المسدّد"
+          value={totalPaid.toFixed(0)}
+          unit="₪"
+          subText="مدفوعات العملاء"
+          data={chartData.paid}
           color="teal"
           type="sparkline"
           icon={<BreadIcon />}
         />
       </div>
 
-      {/* Row 2: Secondary Financial/Stock Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <PremiumChartCard 
-          title="إجمالي الدين المالي على الزبائن" 
-          value="12,400" 
+        <PremiumChartCard
+          title="إجمالي الدين على الزبائن"
+          value={totalDebt.toFixed(0)}
           unit="₪"
-          subText="أرصدة مالية قيد التحصيل" 
-          data={chartData.debtPayable}
+          subText="أرصدة مالية قيد التحصيل"
+          data={chartData.debt}
           color="rose"
           type="sparkline"
           icon={<AlertIcon />}
         />
-        <PremiumChartCard 
-          title="إجمالي الدين المالي للزبائن" 
-          value="8,650" 
+        <PremiumChartCard
+          title="إجمالي المصروفات"
+          value={totalExpenses.toLocaleString()}
           unit="₪"
-          subText="مستحقات لم يتم تسديدها بعد" 
-          data={chartData.debtReceivable}
-          color="emerald"
-          type="sparkline"
-          icon={<CashIcon />}
-        />
-        <PremiumChartCard 
-          title="إجمالي دين الطحين على الزبائن" 
-          value="450" 
-          unit="kg"
-          subText="كميات طحين مرتقب عودتها" 
-          data={chartData.flourDebtPayable}
-          color="amber"
-          type="sparkline"
-          icon={<ScaleIcon />}
-        />
-        <PremiumChartCard 
-          title="إجمالي المصروفات" 
-          value="12,450" 
-          unit="₪"
-          subText="إجمالي تكاليف التشغيل هذا الشهر" 
+          subText="إجمالي تكاليف التشغيل"
           data={chartData.expenses}
           color="rose"
           type="sparkline"
           icon={<ReceiptIcon />}
         />
-        <PremiumChartCard 
-          title="إجمالي دين الطحين للزبائن" 
-          value="280" 
-          unit="kg"
-          subText="رصيد طحين متبقي للعملاء" 
-          data={chartData.flourDebtReceivable}
+        <PremiumChartCard
+          title="عملاء مدينون"
+          value={customers.filter(c => c.debt > 0).length.toString()}
+          subText="عميل لديه رصيد مدين"
+          data={chartData.flourDebt}
+          color="amber"
+          type="sparkline"
+          icon={<ScaleIcon />}
+        />
+        <PremiumChartCard
+          title="عملاء بدون دين"
+          value={customers.filter(c => c.debt === 0).length.toString()}
+          subText="عميل رصيده صفر"
+          data={chartData.blank}
           color="blue"
           type="sparkline"
           icon={<ListIcon />}
         />
       </div>
 
-
-      {/* Footer Branding or Quick Actions */}
       <div className="mt-20 border-t border-gray-100 pt-10 flex flex-col items-center">
          <div className="w-16 h-1 bg-gray-100 rounded-full mb-6"></div>
          <p className="text-gray-300 font-bold text-sm tracking-widest uppercase">مخبز السعادة البلدي</p>
@@ -135,7 +135,6 @@ export default function AdminDashboard() {
   );
 }
 
-// Simple SVG Icons
 function UsersIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +142,6 @@ function UsersIcon() {
     </svg>
   );
 }
-
 function CartIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +149,6 @@ function CartIcon() {
     </svg>
   );
 }
-
 function ScaleIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +156,6 @@ function ScaleIcon() {
     </svg>
   );
 }
-
 function ReceiptIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +163,6 @@ function ReceiptIcon() {
     </svg>
   );
 }
-
 function BreadIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +170,6 @@ function BreadIcon() {
     </svg>
   );
 }
-
 function AlertIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,15 +177,6 @@ function AlertIcon() {
     </svg>
   );
 }
-
-function CashIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
-  );
-}
-
 function ListIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

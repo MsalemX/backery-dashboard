@@ -1,55 +1,50 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+
+type InventoryItem = { id: number; name: string; stock: number; unit: string; threshold: number; last_updated: string };
 
 export default function InventoryPage() {
   const [role, setRole] = useState("");
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [newQuantity, setNewQuantity] = useState("");
 
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole") || "admin";
     setRole(savedRole);
+    fetchInventory();
   }, []);
-  const [inventory, setInventory] = useState([
-    { id: 1, name: "طحين فاخر", stock: 150, unit: "kg", threshold: 100, lastUpdated: "2024/08/08" },
-    { id: 2, name: "سكر ناعم", stock: 85, unit: "kg", threshold: 50, lastUpdated: "2024/08/07" },
-    { id: 3, name: "خميرة فورية", stock: 12, unit: "علبة", threshold: 20, lastUpdated: "2024/08/06" },
-    { id: 4, name: "زبدة طبيعية", stock: 45, unit: "kg", threshold: 30, lastUpdated: "2024/08/08" },
-    { id: 5, name: "ملح طعام", stock: 20, unit: "kg", threshold: 10, lastUpdated: "2024/08/05" },
-  ]);
 
-  const [showForm, setShowForm] = useState(false);
-  const [newItemName, setNewItemName] = useState("");
-  const [newQuantity, setNewQuantity] = useState("");
-  const [newUnit, setNewUnit] = useState("kg");
-
-  const handleAddStock = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updatedInv = inventory.map(item => {
-      if (item.name === newItemName) {
-        return { ...item, stock: item.stock + Number(newQuantity), lastUpdated: new Date().toLocaleDateString('ar-EG') };
-      }
-      return item;
-    });
-
-    // If it's a new item, add it (simplified for demo)
-    const exists = inventory.find(i => i.name === newItemName);
-    if (!exists) {
-      setInventory([...inventory, {
-        id: inventory.length + 1,
-        name: newItemName,
-        stock: Number(newQuantity),
-        unit: newUnit,
-        threshold: 20,
-        lastUpdated: new Date().toLocaleDateString('ar-EG')
-      }]);
-    } else {
-      setInventory(updatedInv);
-    }
-
-    setShowForm(false);
-    setNewItemName("");
-    setNewQuantity("");
+  const fetchInventory = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("inventory").select("*").order("id");
+    if (data) setInventory(data);
+    setLoading(false);
   };
+
+  const handleAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const item = inventory.find(i => i.id === Number(selectedItemId));
+    if (!item) return;
+
+    const newStock = item.stock + Number(newQuantity);
+    const { error } = await supabase.from("inventory")
+      .update({ stock: newStock, last_updated: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (!error) {
+      fetchInventory();
+      setShowForm(false);
+      setSelectedItemId("");
+      setNewQuantity("");
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;
 
   return (
     <div className="p-8">
@@ -72,7 +67,6 @@ export default function InventoryPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Inventory Table */}
         <div className="lg:col-span-2 bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
              <h3 className="text-xl font-bold text-gray-800">قائمة المواد الخام</h3>
@@ -115,7 +109,9 @@ export default function InventoryPage() {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-gray-400 font-bold">{item.threshold} {item.unit}</td>
-                    <td className="px-8 py-6 text-gray-400 text-sm font-medium">{item.lastUpdated}</td>
+                    <td className="px-8 py-6 text-gray-400 text-sm font-medium">
+                      {new Date(item.last_updated).toLocaleDateString("ar-EG")}
+                    </td>
                     <td className="px-8 py-6">
                       <div className="flex justify-center">
                         <div className={`px-4 py-1.5 rounded-full text-[11px] font-black ${isLow ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -130,91 +126,55 @@ export default function InventoryPage() {
           </table>
         </div>
 
-        {/* Recent Supply Logs & Stats */}
         <div className="space-y-8">
            <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 bg-gradient-to-br from-amber-600 to-amber-800 text-white relative overflow-hidden group">
               <div className="relative z-10">
-                <h3 className="text-lg font-bold mb-2">قيمة المخزون الإجمالية</h3>
-                <h2 className="text-4xl font-black mb-4 tracking-tighter">14,580 ₪</h2>
+                <h3 className="text-lg font-bold mb-2">إجمالي بنود المخزون</h3>
+                <h2 className="text-4xl font-black mb-4 tracking-tighter">{inventory.length} صنف</h2>
                 <p className="text-amber-100/80 text-xs font-medium leading-relaxed">
-                   * تم تقدير القيمة بناءً على آخر أسعار الشراء المسجلة للمواد الخام في المخازن.
+                  {inventory.filter(i => i.stock <= i.threshold).length} أصناف تحت الحد الأدنى
                 </p>
               </div>
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
            </div>
-
-
         </div>
       </div>
 
-      {/* Add Stock Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[48px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-3xl font-black text-black">تحديث المخزون</h2>
-              <button 
-                onClick={() => setShowForm(false)}
-                className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all"
-              >
+              <button onClick={() => setShowForm(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-
             <form onSubmit={handleAddStock} className="space-y-6">
               <div>
                 <label className="block text-sm font-black text-black mb-2 mr-1">اسم المادة الخام</label>
-                <select
-                  required
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
-                >
+                <select required value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
                   <option value="">اختر المادة...</option>
-                  {inventory.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
-                  <option value="new">+ إضافة مادة جديدة</option>
+                  {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (متوفر: {i.stock} {i.unit})</option>)}
                 </select>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المضافة</label>
-                  <input
-                    type="number"
-                    required
-                    value={newQuantity}
-                    onChange={(e) => setNewQuantity(e.target.value)}
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
-                    placeholder="0.00"
-                  />
+                  <input type="number" required value={newQuantity} onChange={(e) => setNewQuantity(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="0" />
                 </div>
                 <div>
-                   <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
-                   <input
-                    type="text"
-                    disabled
-                    value={inventory.find(i => i.name === newItemName)?.unit || "kg"}
-                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-black font-bold"
-                  />
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
+                  <input type="text" disabled
+                    value={inventory.find(i => i.id === Number(selectedItemId))?.unit || "—"}
+                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-black font-bold" />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-black text-black mb-2 mr-1">المورد (اختياري)</label>
-                <input
-                  type="text"
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
-                  placeholder="اسم الشركة الموردة..."
-                />
-              </div>
-
               <div className="pt-6">
-                <button
-                  type="submit"
-                  className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]"
-                >
+                <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]">
                   تأكيد الإضافة للمخزون
                 </button>
               </div>

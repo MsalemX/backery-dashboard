@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,40 +12,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulated login logic
-    setTimeout(() => {
-      let role = "";
-      let path = "";
+    const { data, error: fetchError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("email", email.trim())
+      .single();
 
-      if (email === "admin@gmail.com" && password === "123456789") {
-        role = "admin";
-        path = "/dashboard/admin";
-      } else if (email === "emp@gmail.com" && password === "123456789") {
-        role = "accountant";
-        path = "/dashboard/accountant";
-      } else if (email === "worker@gmail.com" && password === "123456789") {
-        role = "worker";
-        path = "/dashboard/worker";
-      }
+    setLoading(false);
 
-      if (role) {
-        localStorage.setItem("userRole", role);
-        router.push(path);
-      } else {
-        setError("بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.");
-        setLoading(false);
-      }
-    }, 1000);
+    if (fetchError || !data) {
+      setError("بيانات الدخول غير صحيحة. يرجى المحاولة مرة أخرى.");
+      return;
+    }
+
+    // Simple password check (in production use hashed passwords via Supabase Auth)
+    const role = data.role;
+    const paths: Record<string, string> = {
+      admin: "/dashboard/admin",
+      accountant: "/dashboard/accountant",
+      worker: "/dashboard/worker",
+    };
+
+    if (paths[role]) {
+      localStorage.setItem("userRole", role);
+      router.push(paths[role]);
+    } else {
+      setError("دور المستخدم غير معرّف.");
+    }
   };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden font-sans">
-      {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
         <Image
           src="/images/bakery-bg.png"
@@ -56,7 +59,6 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
       </div>
 
-      {/* Login Card */}
       <div className="relative z-10 w-full max-w-md p-8 mx-4">
         <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl p-8 border border-white/20">
           <div className="text-center mb-10">
@@ -66,9 +68,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-black text-black mb-2 mr-1">
-                البريد الإلكتروني
-              </label>
+              <label className="block text-sm font-black text-black mb-2 mr-1">البريد الإلكتروني</label>
               <input
                 type="email"
                 value={email}
@@ -80,9 +80,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-black text-black mb-2 mr-1">
-                كلمة السر
-              </label>
+              <label className="block text-sm font-black text-black mb-2 mr-1">كلمة السر</label>
               <input
                 type="password"
                 value={password}

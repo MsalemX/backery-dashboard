@@ -1,0 +1,4 @@
+id,name,email,role,status
+1,أحمد محمد,admin@gmail.com,Admin,نشط
+2,سارة أحمد,emp@gmail.com,Accountant,نشط
+3,خالد محمود,worker@gmail.com,Worker,نشط
