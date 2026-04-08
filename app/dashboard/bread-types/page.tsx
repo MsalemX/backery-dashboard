@@ -1,19 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function BreadTypesPage() {
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    const savedRole = localStorage.getItem("userRole") || "admin";
+    setRole(savedRole);
+  }, []);
   const [searchTerm, setSearchTerm] = useState("");
   const [items, setItems] = useState([
-    { id: 1, name: "خبز بلدي", category: "تقليدي", price: "١.٥٠", image: "/bread/baladi.png", description: "خبز بلدي طازج مخبوز في فرن الحطب التقليدي." },
-    { id: 2, name: "صمون", category: "تقليدي", price: "٢.٠٠", image: "/bread/samoon.png", description: "صمون طازج وهش، يتميز بشكل عصا الألماس الفريد." },
-    { id: 3, name: "كرواسون", category: "معجنات", price: "٥.٠٠", image: "/bread/croissant.png", description: "كرواسون زبدة فرنسي فاخر بلمسة ذهبية وقوام هش." },
-    { id: 4, name: "خبز فرنسي", category: "عالمي", price: "٣.٥٠", image: "/bread/baguette.png", description: "باجيت فرنسي مقرمش من الخارج وطري جداً من الداخل." },
+    { id: 1, name: "خبز بلدي", price: "1.50", image: "/bread/baladi.png", description: "خبز بلدي طازج مخبوز في فرن الحطب التقليدي." },
+    { id: 2, name: "صمون", price: "2.00", image: "/bread/samoon.png", description: "صمون طازج وهش، يتميز بشكل عصا الألماس الفريد." },
+    { id: 3, name: "كرواسون", price: "5.00", image: "/bread/croissant.png", description: "كرواسون زبدة فرنسي فاخر بلمسة ذهبية وقوام هش." },
+    { id: 4, name: "خبز فرنسي", price: "3.50", image: "/bread/baguette.png", description: "باجيت فرنسي مقرمش من الخارج وطري جداً من الداخل." },
   ]);
 
+  const [showForm, setShowForm] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    price: "",
+    description: "",
+  });
+
   const filteredItems = items.filter(item => 
-    item.name.includes(searchTerm) || item.category.includes(searchTerm)
+    item.name.includes(searchTerm)
   );
+
+  const handleAddItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    const item = {
+      id: items.length + 1,
+      ...newItem,
+      image: "/bread/samoon.png", // Placeholder
+    };
+    setItems([...items, item]);
+    setShowForm(false);
+    setNewItem({ name: "", price: "", description: "" });
+  };
 
   return (
     <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen">
@@ -23,12 +48,17 @@ export default function BreadTypesPage() {
           <p className="text-gray-500 mt-2 font-medium">إدارة قائمة الخبز، الأسعار، والأصناف المتوفرة</p>
         </div>
 
-        <button className="flex items-center gap-3 px-8 py-4 bg-amber-800 text-white rounded-[22px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 group">
-          <span>إضافة نوع جديد</span>
-          <svg className="w-5 h-5 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        {role !== "worker" && (
+          <button 
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-3 px-8 py-4 bg-amber-800 text-white rounded-[22px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 group"
+          >
+            <span>إضافة نوع جديد</span>
+            <svg className="w-5 h-5 group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Filters and Search */}
@@ -42,25 +72,10 @@ export default function BreadTypesPage() {
            <input 
              type="text" 
              placeholder="ابحث عن نوع خبز..."
-             className="w-full pr-12 pl-4 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium"
+             className="w-full pr-12 pl-4 py-4 bg-white rounded-2xl border border-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium text-black"
              value={searchTerm}
              onChange={(e) => setSearchTerm(e.target.value)}
            />
-        </div>
-        <div className="flex gap-2">
-           {["الكل", "تقليدي", "معجنات", "عالمي"].map((cat) => (
-             <button 
-               key={cat}
-               className={`px-6 py-2 rounded-xl border font-bold text-sm transition-all ${
-                 searchTerm === cat || (cat === "الكل" && searchTerm === "")
-                 ? "bg-amber-100 border-amber-200 text-amber-900" 
-                 : "bg-white border-gray-100 text-gray-500 hover:bg-gray-50"
-               }`}
-               onClick={() => setSearchTerm(cat === "الكل" ? "" : cat)}
-             >
-               {cat}
-             </button>
-           ))}
         </div>
       </div>
 
@@ -74,11 +89,6 @@ export default function BreadTypesPage() {
                  alt={item.name}
                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                />
-               <div className="absolute top-4 right-4">
-                  <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-xs font-black text-amber-900 shadow-sm border border-white">
-                    {item.category}
-                  </span>
-               </div>
             </div>
             
             <div className="p-8">
@@ -94,30 +104,106 @@ export default function BreadTypesPage() {
                  {item.description}
                </p>
                
-               <div className="flex gap-3">
-                  <button className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors border border-gray-100">
-                    تعديل
-                  </button>
-                  <button className="px-3 py-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors border border-rose-100 group/del">
-                    <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-               </div>
+               {role !== "worker" && (
+                 <div className="flex gap-3">
+                    <button className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors border border-gray-100">
+                      تعديل
+                    </button>
+                    <button 
+                      onClick={() => setItems(items.filter(i => i.id !== item.id))}
+                      className="px-3 py-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors border border-rose-100 group/del"
+                    >
+                      <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                 </div>
+               )}
             </div>
           </div>
         ))}
 
         {/* Empty State / Add Card */}
-        <button className="h-full min-h-[400px] border-4 border-dashed border-gray-100 rounded-[32px] flex flex-col items-center justify-center p-8 group hover:border-amber-200 hover:bg-amber-50/30 transition-all duration-500">
-           <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-amber-100 group-hover:scale-110 transition-all">
-             <svg className="w-8 h-8 text-gray-300 group-hover:text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-             </svg>
-           </div>
-           <p className="text-gray-400 font-bold group-hover:text-amber-800 transition-colors">أضف نوعاً جديداً</p>
-        </button>
+        {role !== "worker" && (
+          <button 
+            onClick={() => setShowForm(true)}
+            className="h-full min-h-[400px] border-4 border-dashed border-gray-100 rounded-[32px] flex flex-col items-center justify-center p-8 group hover:border-amber-200 hover:bg-amber-50/30 transition-all duration-500"
+          >
+             <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-amber-100 group-hover:scale-110 transition-all">
+               <svg className="w-8 h-8 text-gray-300 group-hover:text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+               </svg>
+             </div>
+             <p className="text-gray-400 font-bold group-hover:text-amber-800 transition-colors">أضف نوعاً جديداً</p>
+          </button>
+        )}
       </div>
+
+      {/* Add Item Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[48px] w-full max-w-xl p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl font-black text-black">إضافة نوع خبز جديد</h2>
+              <button 
+                onClick={() => setShowForm(false)}
+                className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all"
+              >
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddItem} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">اسم النوع</label>
+                  <input
+                    type="text"
+                    required
+                    value={newItem.name}
+                    onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
+                    placeholder="مثلاً: خبز بالسمسم"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">السعر (₪)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={newItem.price}
+                    onChange={(e) => setNewItem({...newItem, price: e.target.value})}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">الوصف</label>
+                <textarea
+                  value={newItem.description}
+                  onChange={(e) => setNewItem({...newItem, description: e.target.value})}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black h-32 resize-none"
+                  placeholder="وصف مختصر للنوع الجديد..."
+                />
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-xl hover:bg-amber-900 transition-all shadow-2xl shadow-amber-900/30 transform active:scale-[0.98]"
+                >
+                  تأكيد الإضافة
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

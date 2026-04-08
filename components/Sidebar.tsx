@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 const menuItems = [
   { name: "لوحة التحكم", icon: "Home", path: "/dashboard/admin" },
@@ -9,11 +10,32 @@ const menuItems = [
   { name: "المخزون", icon: "Box", path: "/dashboard/inventory" },
   { name: "الموظفون", icon: "Users", path: "/dashboard/employees" },
   { name: "الزبائن", icon: "User", path: "/dashboard/customers" },
-  { name: "POS", icon: "POS", path: "/dashboard/pos" },
+  { name: "نقاط البيع", icon: "POS", path: "/dashboard/pos" },
+  { name: "المصروفات", icon: "Receipt", path: "/dashboard/expenses" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    const savedRole = localStorage.getItem("userRole") || "admin";
+    setRole(savedRole);
+  }, []);
+
+  const filteredMenuItems = menuItems.map(item => {
+    // Return a new object to avoid mutating the original menuItems array
+    const newItem = { ...item };
+    if (role === "worker") {
+      if (newItem.name === "لوحة التحكم") newItem.path = "/dashboard/worker";
+    }
+    return newItem;
+  }).filter(item => {
+    if (role === "worker") {
+      if (item.name === "الموظفون") return false;
+    }
+    return true;
+  });
 
   return (
     <aside className="w-64 bg-white h-screen fixed right-0 top-0 border-l border-gray-100 flex flex-col z-20">
@@ -21,8 +43,8 @@ export default function Sidebar() {
         <h1 className="text-xl font-bold text-amber-900 text-center">مخبز السعادة البلدي</h1>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2 mt-4">
-        {menuItems.map((item) => {
+      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+        {filteredMenuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
             <Link
@@ -43,8 +65,23 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-6 text-xs text-gray-400">
-        v1.0.4
+      <div className="p-4 border-t border-gray-50">
+        <button 
+          onClick={() => {
+            localStorage.removeItem("userRole");
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl transition-all font-bold text-rose-600 hover:bg-rose-50 group"
+        >
+          <div className="p-2 bg-rose-50 rounded-lg group-hover:bg-white transition-colors">
+            <Icon name="Logout" className="text-rose-600" />
+          </div>
+          <span className="text-sm">تسجيل الخروج</span>
+        </button>
+      </div>
+
+      <div className="p-6 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">
+        v1.0.5
       </div>
     </aside>
   );
@@ -84,7 +121,19 @@ function Icon({ name, className }: { name: string; className?: string }) {
   if (name === "POS")
     return (
       <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    );
+  if (name === "Logout")
+    return (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+    );
+  if (name === "Receipt")
+    return (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01" />
       </svg>
     );
   return null;

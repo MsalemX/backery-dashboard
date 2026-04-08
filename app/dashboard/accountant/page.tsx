@@ -2,17 +2,17 @@
 
 export default function AccountantDashboard() {
   const financialStats = [
-    { label: "إجمالي الدخل الشهري", value: "٨٢,٤٠٠ ₪", subText: "+١٥٪ من الشهر الماضي", trend: "up", color: "emerald" },
-    { label: "إجمالي المصاريف", value: "٢٤,١٥٠ ₪", subText: "-٥٪ تحسن في التكاليف", trend: "down", color: "rose" },
-    { label: "صافي الأرباح", value: "٥٨,٢٥٠ ₪", subText: "أداء مالي مستقر", trend: "up", color: "emerald" },
-    { label: "الضرائب المستحقة", value: "٤,١٢٠ ₪", subText: "تاريخ الاستحقاق: ٢٥ أغسطس", trend: "neutral", color: "amber" },
+    { label: "إجمالي الدخل الشهري", value: "82,400 ₪", subText: "+15٪ من الشهر الماضي", trend: "up", color: "emerald" },
+    { label: "إجمالي المصاريف", value: "24,150 ₪", subText: "-5٪ تحسن في التكاليف", trend: "down", color: "rose" },
+    { label: "صافي الأرباح", value: "58,250 ₪", subText: "أداء مالي مستقر", trend: "up", color: "emerald" },
+    { label: "الضرائب المستحقة", value: "4,120 ₪", subText: "تاريخ الاستحقاق: 25 أغسطس", trend: "neutral", color: "amber" },
   ];
 
   const transactions = [
-    { id: "TX1092", date: "٢٠٢٤/٠٨/٠٨", vendor: "مورد الدقيق الوطني", amount: "-٢,٥٠٠ ₪", type: "expense" },
-    { id: "TX1093", date: "٢٠٢٤/٠٨/٠٨", vendor: "مبيعات الكاشير - وردية الصباح", amount: "+٤,٨٢٠ ₪", type: "income" },
-    { id: "TX1094", date: "٢٠٢٤/٠٨/٠٧", vendor: "شركة المراعي - ألبان وزبدة", amount: "-١,٢٠٠ ₪", type: "expense" },
-    { id: "TX1095", date: "٢٠٢٤/٠٨/٠٧", vendor: "مبيعات المتجر الإلكتروني", amount: "+١,١٥٠ ₪", type: "income" },
+    { id: "TX1092", date: "2024/08/08", vendor: "مورد الدقيق الوطني", amount: "-2,500 ₪", type: "expense" },
+    { id: "TX1093", date: "2024/08/08", vendor: "مبيعات الكاشير - وردية الصباح", amount: "+4,820 ₪", type: "income" },
+    { id: "TX1094", date: "2024/08/07", vendor: "شركة المراعي - ألبان وزبدة", amount: "-1,200 ₪", type: "expense" },
+    { id: "TX1095", date: "2024/08/07", vendor: "مبيعات المتجر الإلكتروني", amount: "+1,150 ₪", type: "income" },
   ];
 
   return (

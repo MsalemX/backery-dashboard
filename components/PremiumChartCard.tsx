@@ -63,7 +63,13 @@ export default function PremiumChartCard({
     gray: { stroke: "#4b5563", fill: "rgba(107, 114, 128, 0.15)", bg: "bg-gray-50", text: "text-gray-600" },
   };
 
-  const selectedColor = colorMap[color] || colorMap.amber;
+  const firstValue = data[0] || 0;
+  const lastValue = data[data.length - 1] || 0;
+  const isPositive = lastValue >= firstValue;
+  
+  // Use trend color (emerald for positive, rose for negative) if data is available
+  const trendColor = data.length > 0 ? (isPositive ? "emerald" : "rose") : color;
+  const selectedColor = colorMap[trendColor as keyof typeof colorMap] || colorMap.amber;
 
   return (
     <div className="group relative bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm transition-all duration-500 overflow-hidden hover:shadow-xl hover:shadow-gray-100/50 hover:-translate-y-1">
@@ -75,7 +81,7 @@ export default function PremiumChartCard({
              </h3>
              {icon && <div className={`${selectedColor.text} opacity-70`}>{icon}</div>}
           </div>
-          <h2 className="text-3xl font-black text-gray-800 tracking-tight">
+          <h2 className={`text-3xl font-black ${selectedColor.text} tracking-tight`}>
             {value} <span className="text-sm font-medium">{unit}</span>
           </h2>
         </div>

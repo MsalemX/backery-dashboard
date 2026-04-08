@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function InventoryPage() {
+  const [role, setRole] = useState("");
+
+  useEffect(() => {
+    const savedRole = localStorage.getItem("userRole") || "admin";
+    setRole(savedRole);
+  }, []);
   const [inventory, setInventory] = useState([
-    { id: 1, name: "طحين فاخر", stock: 150, unit: "kg", threshold: 100, lastUpdated: "٢٠٢٤/٠٨/٠٨" },
-    { id: 2, name: "سكر ناعم", stock: 85, unit: "kg", threshold: 50, lastUpdated: "٢٠٢٤/٠٨/٠٧" },
-    { id: 3, name: "خميرة فورية", stock: 12, unit: "علبة", threshold: 20, lastUpdated: "٢٠٢٤/٠٨/٠٦" },
-    { id: 4, name: "زبدة طبيعية", stock: 45, unit: "kg", threshold: 30, lastUpdated: "٢٠٢٤/٠٨/٠٨" },
-    { id: 5, name: "ملح طعام", stock: 20, unit: "kg", threshold: 10, lastUpdated: "٢٠٢٤/٠٨/٠٥" },
+    { id: 1, name: "طحين فاخر", stock: 150, unit: "kg", threshold: 100, lastUpdated: "2024/08/08" },
+    { id: 2, name: "سكر ناعم", stock: 85, unit: "kg", threshold: 50, lastUpdated: "2024/08/07" },
+    { id: 3, name: "خميرة فورية", stock: 12, unit: "علبة", threshold: 20, lastUpdated: "2024/08/06" },
+    { id: 4, name: "زبدة طبيعية", stock: 45, unit: "kg", threshold: 30, lastUpdated: "2024/08/08" },
+    { id: 5, name: "ملح طعام", stock: 20, unit: "kg", threshold: 10, lastUpdated: "2024/08/05" },
   ]);
 
   const [showForm, setShowForm] = useState(false);
@@ -52,15 +58,17 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-black text-gray-800">إدارة المخزون</h1>
           <p className="text-gray-500 font-bold mt-1">متابعة المواد الخام وتنبيهات النقص</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-6 py-4 bg-amber-800 text-white rounded-[24px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 flex items-center gap-2"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-          </svg>
-          <span>إضافة شحنة مخزون</span>
-        </button>
+        {role !== "worker" && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-6 py-4 bg-amber-800 text-white rounded-[24px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 flex items-center gap-2"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>إضافة شحنة مخزون</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -127,7 +135,7 @@ export default function InventoryPage() {
            <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 bg-gradient-to-br from-amber-600 to-amber-800 text-white relative overflow-hidden group">
               <div className="relative z-10">
                 <h3 className="text-lg font-bold mb-2">قيمة المخزون الإجمالية</h3>
-                <h2 className="text-4xl font-black mb-4 tracking-tighter">١٤,٥٨٠ ₪</h2>
+                <h2 className="text-4xl font-black mb-4 tracking-tighter">14,580 ₪</h2>
                 <p className="text-amber-100/80 text-xs font-medium leading-relaxed">
                    * تم تقدير القيمة بناءً على آخر أسعار الشراء المسجلة للمواد الخام في المخازن.
                 </p>
@@ -135,30 +143,7 @@ export default function InventoryPage() {
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
            </div>
 
-           <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 font-sans">آخر سجلات التوريد</h3>
-              <div className="space-y-6">
-                 {[
-                   { name: "طحين فاخر", q: "٥٠٠ كجم", date: "اليوم، ٠٩:٤٥ ص", status: "مكتمل" },
-                   { name: "سكر ناعم", q: "١٠٠ كجم", date: "أمس، ٣:٢٠ م", status: "مكتمل" },
-                   { name: "خميرة فورية", q: "٢٠ علبة", date: "٥ أغسطس، ٠٨:١٠ ص", status: "مكتمل" },
-                 ].map((log, i) => (
-                   <div key={i} className="flex items-center gap-4 relative">
-                      <div className="w-2 h-2 rounded-full bg-amber-500 absolute -right-4"></div>
-                      <div className="flex-1">
-                         <div className="flex justify-between items-start mb-1">
-                            <h4 className="font-bold text-gray-800 text-sm">{log.name}</h4>
-                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded italic">{log.status}</span>
-                         </div>
-                         <p className="text-xs text-gray-400 font-medium">{log.q} • {log.date}</p>
-                      </div>
-                   </div>
-                 ))}
-                 <button className="w-full py-4 mt-6 bg-gray-50 text-gray-500 rounded-2xl font-bold text-sm hover:bg-gray-100 transition-colors">
-                    مشاهدة السجل الكامل
-                 </button>
-              </div>
-           </div>
+
         </div>
       </div>
 
@@ -167,7 +152,7 @@ export default function InventoryPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[48px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-10">
-              <h2 className="text-3xl font-black text-gray-800">تحديث المخزون</h2>
+              <h2 className="text-3xl font-black text-black">تحديث المخزون</h2>
               <button 
                 onClick={() => setShowForm(false)}
                 className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all"
@@ -180,12 +165,12 @@ export default function InventoryPage() {
 
             <form onSubmit={handleAddStock} className="space-y-6">
               <div>
-                <label className="block text-sm font-black text-gray-700 mb-2 mr-1">اسم المادة الخام</label>
+                <label className="block text-sm font-black text-black mb-2 mr-1">اسم المادة الخام</label>
                 <select
                   required
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
                 >
                   <option value="">اختر المادة...</option>
                   {inventory.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
@@ -195,32 +180,32 @@ export default function InventoryPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-black text-gray-700 mb-2 mr-1">الكمية المضافة</label>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المضافة</label>
                   <input
                     type="number"
                     required
                     value={newQuantity}
                     onChange={(e) => setNewQuantity(e.target.value)}
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold"
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                   <label className="block text-sm font-black text-gray-700 mb-2 mr-1">الوحدة</label>
+                   <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
                    <input
                     type="text"
                     disabled
                     value={inventory.find(i => i.name === newItemName)?.unit || "kg"}
-                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-gray-400 font-bold"
+                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-black font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-black text-gray-700 mb-2 mr-1">المورد (اختياري)</label>
+                <label className="block text-sm font-black text-black mb-2 mr-1">المورد (اختياري)</label>
                 <input
                   type="text"
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
                   placeholder="اسم الشركة الموردة..."
                 />
               </div>

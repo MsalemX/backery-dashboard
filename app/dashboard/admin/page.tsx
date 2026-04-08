@@ -9,8 +9,9 @@ export default function AdminDashboard() {
     bread: [90, 110, 105, 130, 125, 145, 140],
     debtPayable: [500, 450, 600, 550, 700, 650, 800],
     debtReceivable: [1200, 1100, 1300, 1250, 1400, 1350, 1500],
-    flourDebtPayable: [15, 20, 18, 25, 22, 30, 28],
+    flourDebtPayable: [30, 28, 25, 22, 18, 15, 12],
     flourDebtReceivable: [40, 35, 45, 42, 50, 48, 55],
+    expenses: [1200, 1500, 1100, 1800, 1400, 1600, 1900],
   };
 
   return (
@@ -21,38 +22,10 @@ export default function AdminDashboard() {
           <h1 className="text-4xl font-black text-gray-800 tracking-tight">لوحة التحكم</h1>
         </div>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          {/* Welcome Admin Card */}
-          <div className="flex-1 md:flex-none flex items-center justify-between gap-6 bg-white px-6 py-4 rounded-[22px] shadow-sm border border-gray-100 min-w-[240px]">
-             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
-                   {/* User Icon Placeholder */}
-                   <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                   </svg>
-                </div>
-                <div className="text-right">
-                   <p className="text-[12px] text-gray-400 font-bold">مرحباً</p>
-                   <p className="text-lg font-black text-gray-800">Admin</p>
-                </div>
-             </div>
-             <div className="text-gray-300">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-               </svg>
-             </div>
-          </div>
-
-          {/* Logout Button */}
-          <Link
-            href="/login"
-            className="flex items-center gap-3 px-6 py-4 bg-white text-gray-600 rounded-[22px] border border-gray-100 hover:text-rose-600 hover:bg-rose-50 transition-all font-bold shadow-sm group"
-          >
-            <span>تسجيل الخروج</span>
-            <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </Link>
+        <div className="flex items-center gap-4">
+          <p className="text-gray-400 font-bold text-sm bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm">
+            نظام الإدارة المركزي
+          </p>
         </div>
       </div>
 
@@ -60,8 +33,8 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <PremiumChartCard 
           title="إجمالي العملاء" 
-          value="١,٢٨٤" 
-          subText="٦٩ عميل جديد خلال آخر ٧ أيام" 
+          value="1,284" 
+          subText="69 عميل جديد خلال آخر 7 أيام" 
           data={chartData.customers}
           color="emerald"
           type="sparkline"
@@ -69,8 +42,8 @@ export default function AdminDashboard() {
         />
         <PremiumChartCard 
           title="إجمالي الطلبات" 
-          value="٨٤٢" 
-          subText="زيادة بنسبة ١٢٪ عن الشهر الماضي" 
+          value="842" 
+          subText="زيادة بنسبة 12٪ عن الشهر الماضي" 
           data={chartData.orders}
           color="blue"
           type="sparkline"
@@ -78,7 +51,7 @@ export default function AdminDashboard() {
         />
         <PremiumChartCard 
           title="الطحين المستخدم (كجم)" 
-          value="٤,٢٥٠" 
+          value="4,250" 
           unit="kg"
           subText="استهلاك مستقر هذا الأسبوع" 
           data={chartData.flour}
@@ -88,7 +61,7 @@ export default function AdminDashboard() {
         />
         <PremiumChartCard 
           title="الخبز المنتج (كجم)" 
-          value="٣,٨٢٠" 
+          value="3,820" 
           unit="kg"
           subText="كفاءة إنتاجية عالية" 
           data={chartData.bread}
@@ -102,7 +75,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <PremiumChartCard 
           title="إجمالي الدين المالي على الزبائن" 
-          value="١٢,٤٠٠" 
+          value="12,400" 
           unit="₪"
           subText="أرصدة مالية قيد التحصيل" 
           data={chartData.debtPayable}
@@ -112,7 +85,7 @@ export default function AdminDashboard() {
         />
         <PremiumChartCard 
           title="إجمالي الدين المالي للزبائن" 
-          value="٨,٦٥٠" 
+          value="8,650" 
           unit="₪"
           subText="مستحقات لم يتم تسديدها بعد" 
           data={chartData.debtReceivable}
@@ -122,7 +95,7 @@ export default function AdminDashboard() {
         />
         <PremiumChartCard 
           title="إجمالي دين الطحين على الزبائن" 
-          value="٤٥٠" 
+          value="450" 
           unit="kg"
           subText="كميات طحين مرتقب عودتها" 
           data={chartData.flourDebtPayable}
@@ -131,8 +104,18 @@ export default function AdminDashboard() {
           icon={<ScaleIcon />}
         />
         <PremiumChartCard 
+          title="إجمالي المصروفات" 
+          value="12,450" 
+          unit="₪"
+          subText="إجمالي تكاليف التشغيل هذا الشهر" 
+          data={chartData.expenses}
+          color="rose"
+          type="sparkline"
+          icon={<ReceiptIcon />}
+        />
+        <PremiumChartCard 
           title="إجمالي دين الطحين للزبائن" 
-          value="٢٨٠" 
+          value="280" 
           unit="kg"
           subText="رصيد طحين متبقي للعملاء" 
           data={chartData.flourDebtReceivable}
@@ -173,6 +156,14 @@ function ScaleIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+    </svg>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01" />
     </svg>
   );
 }

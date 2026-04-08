@@ -104,7 +104,7 @@ export default function EmployeesPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] w-full max-w-lg p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-800">إضافة موظف جديد</h2>
+              <h2 className="text-2xl font-bold text-black">إضافة موظف جديد</h2>
               <button 
                 onClick={() => setShowForm(false)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -117,51 +117,50 @@ export default function EmployeesPage() {
 
             <form onSubmit={handleAddEmployee} className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">الاسم الكامل</label>
+                <label className="block text-sm font-bold text-black mb-2">الاسم الكامل</label>
                 <input
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-black"
                   placeholder="أدخل الاسم..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">البريد الإلكتروني</label>
+                <label className="block text-sm font-bold text-black mb-2">البريد الإلكتروني</label>
                 <input
                   type="email"
                   required
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans text-black"
                   placeholder="name@example.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">كلمة السر</label>
+                <label className="block text-sm font-bold text-black mb-2">كلمة السر</label>
                 <input
                   type="password"
                   required
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-black"
                   placeholder="••••••••"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">الدور الوظيفي</label>
+                <label className="block text-sm font-bold text-black mb-2">الدور الوظيفي</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-black"
                 >
-                  <option value="محاسب">محاسب</option>
-                  <option value="خباز">خباز</option>
-                  <option value="مدير مبيعات">مدير مبيعات</option>
+                  <option value="أدمن">أدمن</option>
+                  <option value="موظف">موظف</option>
                 </select>
               </div>
 
