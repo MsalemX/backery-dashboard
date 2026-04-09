@@ -30,15 +30,18 @@ export default function BreadTypesPage() {
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("bread_types").insert({
+    const { data, error } = await supabase.from("bread_types").insert({
       name: newItem.name,
       price: parseFloat(newItem.price),
       description: newItem.description,
-    });
+    }).select();
+    console.log("INSERT RESULT:", { data, error });
     if (!error) {
       fetchBreadTypes();
       setShowForm(false);
       setNewItem({ name: "", price: "", description: "" });
+    } else {
+      alert("خطأ: " + error.message + "\nCode: " + error.code);
     }
   };
 

@@ -23,6 +23,7 @@ export default function LoginPage() {
       .eq("email", email.trim())
       .single();
 
+    console.log("LOGIN DEBUG:", { data, fetchError, email: email.trim() });
     setLoading(false);
 
     if (fetchError || !data) {
