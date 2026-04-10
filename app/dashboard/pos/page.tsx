@@ -14,10 +14,15 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
 
   const [showSupplyForm, setShowSupplyForm] = useState(false);
+  const [showPOSForm, setShowPOSForm] = useState(false);
   const [selectedPOS, setSelectedPOS] = useState("");
   const [selectedItem, setSelectedItem] = useState("");
   const [quantityTaken, setQuantityTaken] = useState("");
   const [quantityReturned, setQuantityReturned] = useState("");
+  
+  // New POS form state
+  const [newPOSName, setNewPOSName] = useState("");
+  const [newPOSPhone, setNewPOSPhone] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -34,6 +39,23 @@ export default function POSPage() {
     if (breadRes.data) setBreadTypes(breadRes.data);
     if (recRes.data) setRecords(recRes.data);
     setLoading(false);
+  };
+
+  const handleCreatePOS = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.from("pos").insert({
+      name: newPOSName,
+      contact: newPOSPhone,
+      status: "نشط",
+      location: "موقع غير محدد"
+    });
+
+    if (!error) {
+      fetchData();
+      setShowPOSForm(false);
+      setNewPOSName("");
+      setNewPOSPhone("");
+    }
   };
 
   const handleAddRecord = async (e: React.FormEvent) => {
@@ -74,21 +96,32 @@ export default function POSPage() {
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;
 
   return (
-    <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen font-sans">
+    <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen font-sans text-right" dir="rtl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
           <h1 className="text-4xl font-black text-gray-800 tracking-tight">نقاط البيع (POS)</h1>
-          <p className="text-gray-500 mt-2 font-medium">تسجيل التوريدات اليومية، المرتجعات، وحساب الصافي لكل نقطة</p>
+          <p className="text-gray-500 mt-2 font-medium">إدارة نقاط التوزيع، تسجيل التوريدات، وحساب الأرصدة</p>
         </div>
-        <button
-          onClick={() => setShowSupplyForm(true)}
-          className="flex items-center gap-3 px-8 py-4 bg-amber-800 text-white rounded-[22px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 group transform active:scale-95"
-        >
-          <span>تسجيل توريد جديد</span>
-          <svg className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowPOSForm(true)}
+            className="flex items-center gap-2 px-6 py-4 bg-white text-amber-900 border-2 border-amber-100 rounded-[22px] font-bold hover:bg-amber-50 transition-all shadow-sm group"
+          >
+            <svg className="w-5 h-5 text-amber-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span>إضافة نقطة بيع</span>
+          </button>
+          <button
+            onClick={() => setShowSupplyForm(true)}
+            className="flex items-center gap-3 px-8 py-4 bg-amber-800 text-white rounded-[22px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 group transform active:scale-95"
+          >
+            <span>تسجيل توريد جديد</span>
+            <svg className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-12">
@@ -158,12 +191,12 @@ export default function POSPage() {
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleAddRecord} className="space-y-6">
+            <form onSubmit={handleAddRecord} className="space-y-6 text-right">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-black text-black mb-2 mr-1">نقطة البيع</label>
                   <select required value={selectedPOS} onChange={(e) => setSelectedPOS(e.target.value)}
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right">
                     <option value="">اختر النقطة...</option>
                     {posList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -171,7 +204,7 @@ export default function POSPage() {
                 <div>
                   <label className="block text-sm font-black text-black mb-2 mr-1">الصنف</label>
                   <select required value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)}
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right">
                     <option value="">اختر الصنف...</option>
                     {breadTypes.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                   </select>
@@ -198,6 +231,56 @@ export default function POSPage() {
               <div className="pt-4">
                 <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-xl hover:bg-amber-900 transition-all shadow-2xl shadow-amber-900/30 transform active:scale-[0.98]">
                   تأكيد وحفظ السجل
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPOSForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[48px] w-full max-w-md p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl font-black text-black">نقطة بيع جديدة</h2>
+              <button 
+                onClick={() => setShowPOSForm(false)} 
+                className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all"
+              >
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreatePOS} className="space-y-6 text-right">
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">اسم نقطة البيع</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newPOSName} 
+                  onChange={(e) => setNewPOSName(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" 
+                  placeholder="مثلاً: سوبر ماركت الهدى" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">رقم الهاتف / للتواصل</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newPOSPhone} 
+                  onChange={(e) => setNewPOSPhone(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" 
+                  placeholder="05xxxxxxx" 
+                />
+              </div>
+              <div className="pt-6">
+                <button 
+                  type="submit" 
+                  className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]"
+                >
+                  حفظ نقطة البيع
                 </button>
               </div>
             </form>
