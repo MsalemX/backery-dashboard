@@ -1,4 +1,3 @@
 id,full_name,email,password,role,created_at
 1,المدير العام,admin@gmail.com,123456789,admin,2024-01-01
-2,المحاسب المالي,emp@gmail.com,123456789,accountant,2024-01-05
-3,عامل التوزيع,worker@gmail.com,123456789,worker,2024-02-10
+2,عامل التوزيع,worker@gmail.com,123456789,worker,2024-02-10

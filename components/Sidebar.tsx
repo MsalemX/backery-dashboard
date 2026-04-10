@@ -12,6 +12,9 @@ const menuItems = [
   { name: "الزبائن", icon: "User", path: "/dashboard/customers" },
   { name: "نقاط البيع", icon: "POS", path: "/dashboard/pos" },
   { name: "المصروفات", icon: "Receipt", path: "/dashboard/expenses" },
+  { name: "الطلبات", icon: "Orders", path: "/dashboard/admin/orders" },
+  { name: "المتجر", icon: "Cart", path: "/dashboard/customer/shop" },
+  { name: "سجل العمليات", icon: "History", path: "/dashboard/customer/transactions" },
 ];
 
 export default function Sidebar() {
@@ -24,15 +27,26 @@ export default function Sidebar() {
   }, []);
 
   const filteredMenuItems = menuItems.map(item => {
-    // Return a new object to avoid mutating the original menuItems array
     const newItem = { ...item };
     if (role === "worker") {
       if (newItem.name === "لوحة التحكم") newItem.path = "/dashboard/worker";
+      if (newItem.name === "الطلبات") newItem.path = "/dashboard/worker/orders";
+    }
+    if (role === "customer") {
+      if (newItem.name === "لوحة التحكم") newItem.path = "/dashboard/customer";
     }
     return newItem;
   }).filter(item => {
     if (role === "worker") {
-      if (item.name === "الموظفون") return false;
+      const allowed = ["لوحة التحكم", "أنواع الخبز", "المخزون", "الزبائن", "الطلبات"];
+      return allowed.includes(item.name);
+    }
+    if (role === "customer") {
+      const allowed = ["لوحة التحكم", "المتجر", "سجل العمليات"];
+      return allowed.includes(item.name);
+    }
+    if (role === "admin" || role === "accountant") {
+      if (item.name === "المتجر" || item.name === "سجل العمليات") return false;
     }
     return true;
   });
@@ -134,6 +148,24 @@ function Icon({ name, className }: { name: string; className?: string }) {
     return (
       <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01m-.01 4h.01" />
+      </svg>
+    );
+  if (name === "Cart")
+    return (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    );
+  if (name === "History")
+    return (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+  if (name === "Orders")
+    return (
+      <svg className={`w-4 h-4 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
       </svg>
     );
   return null;

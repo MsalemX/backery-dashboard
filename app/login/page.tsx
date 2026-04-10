@@ -37,6 +37,7 @@ export default function LoginPage() {
       admin: "/dashboard/admin",
       accountant: "/dashboard/accountant",
       worker: "/dashboard/worker",
+      customer: "/dashboard/customer",
     };
 
     if (paths[role]) {
