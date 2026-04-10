@@ -11,7 +11,8 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState("Accountant");
+  const [newRole, setNewRole] = useState("Worker");
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     fetchEmployees();
@@ -26,21 +27,38 @@ export default function EmployeesPage() {
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("employees").insert({
+    
+    // 1. Insert into employees table
+    const { error: empError } = await supabase.from("employees").insert({
       name: newName,
       email: newEmail,
       role: newRole,
       status: "نشط",
     });
-    if (!error) {
+
+    if (!empError) {
+      // 2. Insert into users table for login
+      const { error: userError } = await supabase.from("users").insert({
+        full_name: newName,
+        email: newEmail,
+        password: newPassword,
+        role: newRole.toLowerCase(), // Store role in lowercase for the login system
+      });
+
+      if (userError) {
+        console.error("Error creating user login account:", userError);
+      }
+
       fetchEmployees();
       setShowForm(false);
       setNewName("");
       setNewEmail("");
+      setNewPassword("");
     }
   };
 
   const handleDelete = async (id: number) => {
+    // Note: In a real system you should also delete the corresponding user record
     await supabase.from("employees").delete().eq("id", id);
     setEmployees(employees.filter(e => e.id !== id));
   };
@@ -52,7 +70,7 @@ export default function EmployeesPage() {
       <div className="flex justify-between items-center mb-10">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">إدارة الموظفين</h1>
-          <p className="text-gray-500 mt-1">إضافة وإدارة صلاحيات المحاسبين والخبراء</p>
+          <p className="text-gray-500 mt-1">إضافة وإدارة صلاحيات المديرين والعاملين</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -132,11 +150,15 @@ export default function EmployeesPage() {
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-sans text-black" placeholder="name@example.com" />
               </div>
               <div>
+                <label className="block text-sm font-bold text-black mb-2">كلمة المرور</label>
+                <input type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-black" placeholder="أدخل كلمة المرور..." />
+              </div>
+              <div>
                 <label className="block text-sm font-bold text-black mb-2">الدور الوظيفي</label>
                 <select value={newRole} onChange={(e) => setNewRole(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-black">
                   <option value="Admin">Admin - مدير</option>
-                  <option value="Accountant">Accountant - محاسب</option>
                   <option value="Worker">Worker - عامل</option>
                 </select>
               </div>

@@ -45,7 +45,7 @@ export default function Sidebar() {
       const allowed = ["لوحة التحكم", "المتجر", "سجل العمليات"];
       return allowed.includes(item.name);
     }
-    if (role === "admin" || role === "accountant") {
+    if (role === "admin") {
       if (item.name === "المتجر" || item.name === "سجل العمليات") return false;
     }
     return true;

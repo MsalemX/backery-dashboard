@@ -12,7 +12,6 @@ export default function Home() {
     if (role) {
       const paths: Record<string, string> = {
         admin: "/dashboard/admin",
-        accountant: "/dashboard/accountant",
         worker: "/dashboard/worker",
         customer: "/dashboard/customer",
       };

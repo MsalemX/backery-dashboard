@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -17,7 +18,6 @@ export default function LoginPage() {
     if (role) {
       const paths: Record<string, string> = {
         admin: "/dashboard/admin",
-        accountant: "/dashboard/accountant",
         worker: "/dashboard/worker",
         customer: "/dashboard/customer",
       };
@@ -51,7 +51,6 @@ export default function LoginPage() {
     const role = data.role;
     const paths: Record<string, string> = {
       admin: "/dashboard/admin",
-      accountant: "/dashboard/accountant",
       worker: "/dashboard/worker",
       customer: "/dashboard/customer",
     };
@@ -85,6 +84,11 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
+            {router && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("signup") === "success" && (
+              <div className="text-emerald-600 text-[10px] font-black bg-emerald-50 p-4 rounded-2xl border border-emerald-100 text-center animate-bounce">
+                تم إنشاء حسابك بنجاح! يمكنك الآن تسجيل الدخول.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-black text-black mb-2 mr-1">البريد الإلكتروني</label>
               <input
@@ -129,6 +133,15 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-500 font-bold text-sm">
+              ليس لديك حساب؟{" "}
+              <Link href="/signup" className="text-amber-800 font-black hover:underline">
+                إنشاء حساب جديد
+              </Link>
+            </p>
+          </div>
 
           <div className="mt-8 text-center text-gray-400 text-[10px] font-black uppercase tracking-widest">
             <p>© 2026 مخبز السعادة البلدي. جميع الحقوق محفوظة.</p>
