@@ -1,4 +1,4 @@
-import { supabase } from "./lib/supabase";
+import { supabase } from "../lib/supabase";
 
 async function checkSchema() {
   const { data, error } = await supabase.from("users").select("*").limit(1);
