@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     const { data, error: fetchError } = await supabase
       .from("users")
-      .select("role")
+      .select("role, full_name, email")
       .eq("email", email.trim())
       .single();
 
@@ -57,6 +57,8 @@ export default function LoginPage() {
 
     if (paths[role]) {
       localStorage.setItem("userRole", role);
+      localStorage.setItem("userName", data.full_name);
+      localStorage.setItem("userEmail", data.email);
       router.push(paths[role]);
     } else {
       setError("دور المستخدم غير معرّف.");

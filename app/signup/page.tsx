@@ -55,6 +55,11 @@ export default function SignupPage() {
 
       if (customerError) throw customerError;
 
+      // Save user info for future use (e.g., personalization)
+      localStorage.setItem("userName", fullName);
+      localStorage.setItem("userEmail", email.trim());
+      localStorage.setItem("userRole", "customer");
+
       // Success! Auto login or redirect to login
       router.push("/login?signup=success");
     } catch (err: any) {

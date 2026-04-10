@@ -17,28 +17,68 @@ export default function CustomerDashboard() {
 
   const fetchCustomerData = async () => {
     setLoading(true);
-    // In a real app, we would get the email/id from the session
-    // For now, let's assume we are "سوبر ماركت الأمل" for demo purposes
-    // Or try to find a match by name in localStorage if we saved it
-    const { data: userData } = await supabase.from("users").select("*").limit(1); // Mocking session
     
-    const { data: customerData } = await supabase
+    // Get the name of the logged-in user from localStorage
+    const savedName = localStorage.getItem("userName");
+    
+    if (!savedName) {
+      setLoading(false);
+      return;
+    }
+
+    // 1. Fetch customer details
+    const { data: customerData, error: customerError } = await supabase
       .from("customers")
       .select("*")
-      .eq("name", "سوبر ماركت الأمل") // Demo customer
+      .eq("name", savedName)
       .single();
 
-    if (customerData) {
-      setCustomer(customerData);
-      const { data: txData } = await supabase
-        .from("customer_transactions")
-        .select("*")
-        .eq("customer_id", customerData.id)
-        .order("date", { ascending: false })
-        .limit(5);
-      setTransactions(txData || []);
+    if (customerError || !customerData) {
+      console.error("Error fetching customer:", customerError);
+      setLoading(false);
+      return;
     }
+
+    setCustomer(customerData);
+
+    // 2. Fetch full transaction history for this customer
+    const { data: txData, error: txError } = await supabase
+      .from("customer_transactions")
+      .select("*")
+      .eq("customer_id", customerData.id)
+      .order("date", { ascending: false });
+
+    if (!txError && txData) {
+      setTransactions(txData);
+    }
+
     setLoading(false);
+  };
+
+  const getDebtTrend = () => {
+    if (transactions.length === 0) return [0];
+    let currentDebt = customer?.debt || 0;
+    const history = [currentDebt];
+    // Reconstruct history backwards (simplified)
+    transactions.slice(0, 6).forEach(tx => {
+      if (tx.type === 'credit') currentDebt -= tx.amount;
+      else currentDebt += tx.amount;
+      history.unshift(currentDebt);
+    });
+    return history;
+  };
+
+  const getPaymentTrend = () => {
+    if (transactions.length === 0) return [0];
+    let currentPaid = customer?.total_paid || 0;
+    const history = [currentPaid];
+    transactions.slice(0, 6).forEach(tx => {
+      if (tx.type === 'payment') {
+        currentPaid -= tx.amount;
+        history.unshift(currentPaid);
+      }
+    });
+    return history;
   };
 
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;
@@ -47,7 +87,7 @@ export default function CustomerDashboard() {
 
   return (
     <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen font-sans">
-      <div className="mb-10">
+      <div className="mb-10 text-right">
         <h1 className="text-4xl font-black text-gray-800 tracking-tight">أهلاً بك، {customer.name}</h1>
         <p className="text-gray-500 mt-2 font-medium">مرحباً بك في لوحة تحكم زبائن مخبز السعادة البلدي</p>
       </div>
@@ -57,8 +97,8 @@ export default function CustomerDashboard() {
           title="رصيدك المدين"
           value={customer.debt.toFixed(2)}
           unit="₪"
-          subText="المبلغ المتبقي للدفع"
-          data={[100, 120, 150, 140, 180, 200, customer.debt]}
+          subText="المبلغ المتبقي المترصد في ذمتك"
+          data={getDebtTrend()}
           color="rose"
           type="sparkline"
           icon={<AlertIcon />}
@@ -67,8 +107,8 @@ export default function CustomerDashboard() {
           title="إجمالي المدفوعات"
           value={customer.total_paid.toFixed(2)}
           unit="₪"
-          subText="المبالغ التي قمت بتسديدها"
-          data={[500, 600, 700, 800, 900, 1000, customer.total_paid]}
+          subText="إجمالي المبالغ المسددة حتى الآن"
+          data={getPaymentTrend()}
           color="emerald"
           type="sparkline"
           icon={<CheckIcon />}
