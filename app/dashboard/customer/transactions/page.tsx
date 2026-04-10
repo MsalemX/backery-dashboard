@@ -13,21 +13,39 @@ export default function CustomerTransactions() {
 
   const fetchTransactions = async () => {
     setLoading(true);
-    // Hardcoded demo customer 'سوبر ماركت الأمل'
-    const { data: customer } = await supabase
+    
+    // Get the name of the logged-in user from localStorage
+    const savedName = localStorage.getItem("userName");
+    
+    if (!savedName) {
+      setLoading(false);
+      return;
+    }
+
+    // 1. Fetch customer details
+    const { data: customerData, error: customerError } = await supabase
       .from("customers")
       .select("id")
-      .eq("name", "سوبر ماركت الأمل")
+      .eq("name", savedName)
       .single();
 
-    if (customer) {
-      const { data } = await supabase
-        .from("customer_transactions")
-        .select("*")
-        .eq("customer_id", customer.id)
-        .order("date", { ascending: false });
-      setTransactions(data || []);
+    if (customerError || !customerData) {
+      console.error("Error fetching customer:", customerError);
+      setLoading(false);
+      return;
     }
+
+    // 2. Fetch transaction history
+    const { data: txData, error: txError } = await supabase
+      .from("customer_transactions")
+      .select("*")
+      .eq("customer_id", customerData.id)
+      .order("date", { ascending: false });
+
+    if (!txError && txData) {
+      setTransactions(txData);
+    }
+    
     setLoading(false);
   };
 

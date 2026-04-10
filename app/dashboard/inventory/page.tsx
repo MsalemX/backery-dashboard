@@ -10,7 +10,11 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [isNewItem, setIsNewItem] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemUnit, setNewItemUnit] = useState("كيلو");
+  const [newItemThreshold, setNewItemThreshold] = useState("10");
   const [newQuantity, setNewQuantity] = useState("");
 
   useEffect(() => {
@@ -28,6 +32,26 @@ export default function InventoryPage() {
 
   const handleAddStock = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isNewItem) {
+      // Create New Item
+      const { error } = await supabase.from("inventory").insert({
+        name: newItemName,
+        stock: Number(newQuantity),
+        unit: newItemUnit,
+        threshold: Number(newItemThreshold),
+        last_updated: new Date().toISOString()
+      });
+      
+      if (!error) {
+        fetchInventory();
+        setShowForm(false);
+        resetForm();
+      }
+      return;
+    }
+
+    // Update Existing Item
     const item = inventory.find(i => i.id === Number(selectedItemId));
     if (!item) return;
 
@@ -39,9 +63,15 @@ export default function InventoryPage() {
     if (!error) {
       fetchInventory();
       setShowForm(false);
-      setSelectedItemId("");
-      setNewQuantity("");
+      resetForm();
     }
+  };
+
+  const resetForm = () => {
+    setSelectedItemId("");
+    setNewItemName("");
+    setNewQuantity("");
+    setIsNewItem(false);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;
@@ -144,38 +174,83 @@ export default function InventoryPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[48px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-10">
-              <h2 className="text-3xl font-black text-black">تحديث المخزون</h2>
+              <h2 className="text-3xl font-black text-black">{isNewItem ? 'إضافة صنف جديد' : 'تحديث المخزون'}</h2>
               <button onClick={() => setShowForm(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
+            
+            <div className="flex gap-4 mb-8 bg-gray-100 p-2 rounded-2xl">
+              <button 
+                onClick={() => setIsNewItem(false)}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${!isNewItem ? 'bg-white shadow-sm text-amber-900' : 'text-gray-400 font-medium'}`}
+              >
+                تحديث موجود
+              </button>
+              <button 
+                onClick={() => setIsNewItem(true)}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${isNewItem ? 'bg-white shadow-sm text-amber-900' : 'text-gray-400 font-medium'}`}
+              >
+                صنف جديد
+              </button>
+            </div>
+
             <form onSubmit={handleAddStock} className="space-y-6">
-              <div>
-                <label className="block text-sm font-black text-black mb-2 mr-1">اسم المادة الخام</label>
-                <select required value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
-                  <option value="">اختر المادة...</option>
-                  {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (متوفر: {i.stock} {i.unit})</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المضافة</label>
-                  <input type="number" required value={newQuantity} onChange={(e) => setNewQuantity(e.target.value)}
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
-                  <input type="text" disabled
-                    value={inventory.find(i => i.id === Number(selectedItemId))?.unit || "—"}
-                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-black font-bold" />
-                </div>
-              </div>
+              {isNewItem ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2 mr-1">اسم المادة الخام الجديدة</label>
+                    <input type="text" required value={newItemName} onChange={(e) => setNewItemName(e.target.value)}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="مثلاً: طحين بر" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
+                      <input type="text" required value={newItemUnit} onChange={(e) => setNewItemUnit(e.target.value)}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="كيلو، كيس..." />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-black text-black mb-2 mr-1">الكمية الأولية</label>
+                      <input type="number" required value={newQuantity} onChange={(e) => setNewQuantity(e.target.value)}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="0" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2 mr-1">حد التنبيه (Threshold)</label>
+                    <input type="number" required value={newItemThreshold} onChange={(e) => setNewItemThreshold(e.target.value)}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2 mr-1">اختر المادة الخام</label>
+                    <select required value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
+                      <option value="">اختر المادة...</option>
+                      {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (متوفر: {i.stock} {i.unit})</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المضافة</label>
+                      <input type="number" required value={newQuantity} onChange={(e) => setNewQuantity(e.target.value)}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black" placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
+                      <input type="text" disabled
+                        value={inventory.find(i => i.id === Number(selectedItemId))?.unit || "—"}
+                        className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-black font-bold" />
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="pt-6">
                 <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]">
-                  تأكيد الإضافة للمخزون
+                  {isNewItem ? 'حفظ الصنف الجديد' : 'تأكيد الإضافة للمخزون'}
                 </button>
               </div>
             </form>
