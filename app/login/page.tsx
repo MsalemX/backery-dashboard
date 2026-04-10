@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,22 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    if (role) {
+      const paths: Record<string, string> = {
+        admin: "/dashboard/admin",
+        accountant: "/dashboard/accountant",
+        worker: "/dashboard/worker",
+        customer: "/dashboard/customer",
+      };
+      if (paths[role]) {
+        router.push(paths[role]);
+      }
+    }
+  }, [router]);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
