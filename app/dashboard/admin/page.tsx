@@ -51,7 +51,7 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <PremiumChartCard
           title="إجمالي العملاء"
-          value={totalCustomers.toLocaleString()}
+          value={totalCustomers.toLocaleString("en-US")}
           subText="عدد العملاء المسجلين"
           data={chartData.customers}
           color="emerald"
@@ -60,7 +60,7 @@ export default async function AdminDashboard() {
         />
         <PremiumChartCard
           title="إجمالي الموزع (صافي)"
-          value={totalDistributed.toLocaleString()}
+          value={totalDistributed.toLocaleString("en-US")}
           subText="قطعة خبز موزعة"
           data={chartData.bread}
           color="blue"
@@ -102,7 +102,7 @@ export default async function AdminDashboard() {
         />
         <PremiumChartCard
           title="إجمالي المصروفات"
-          value={totalExpenses.toLocaleString()}
+          value={totalExpenses.toLocaleString("en-US")}
           unit="₪"
           subText="إجمالي تكاليف التشغيل"
           data={chartData.expenses}

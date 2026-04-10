@@ -36,14 +36,17 @@ export default function CustomerShop() {
     setMessage("");
 
     try {
-      // 1. Get current customer (hardcoded for demo as 'سوبر ماركت الأمل')
-      const { data: customer } = await supabase
+      // 1. Get current customer from localStorage
+      const savedName = localStorage.getItem("userName");
+      if (!savedName) throw new Error("يرجى تسجيل الدخول أولاً");
+
+      const { data: customer, error: customerErr } = await supabase
         .from("customers")
         .select("*")
-        .eq("name", "سوبر ماركت الأمل")
+        .eq("name", savedName)
         .single();
 
-      if (!customer) throw new Error("لم يتم العثور على بيانات الزبون");
+      if (customerErr || !customer) throw new Error("لم يتم العثور على بيانات الزبون المرتبطة بحسابك");
 
       // 2. Create Order in the 'orders' table
       const { error: orderErr } = await supabase.from("orders").insert({
