@@ -29,6 +29,9 @@ export default function CustomersPage() {
   const [showFlourForm, setShowFlourForm] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
@@ -168,6 +171,29 @@ export default function CustomersPage() {
     }
   };
 
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomerName.trim()) return;
+    const { error } = await supabase.from("customers").insert({
+      name: newCustomerName.trim(),
+      phone: newCustomerPhone.trim(),
+      debt: 0,
+      total_paid: 0,
+      financial_credit: 0,
+      flour_credit: 0,
+      flour_debt: 0,
+      status: "active",
+    });
+    if (!error) {
+      fetchData();
+      setShowAddCustomerForm(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+    } else {
+      alert("خطأ في الإضافة: " + error.message);
+    }
+  };
+
   const handleLongPress = (customer: Customer) => {
     setSelectedCustomerId(customer.id.toString());
     setEditingCustomer(customer);
@@ -205,6 +231,15 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex gap-4">
+          <button
+            onClick={() => setShowAddCustomerForm(true)}
+            className="flex items-center gap-3 px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-[22px] font-bold hover:bg-gray-50 transition-all shadow-sm group"
+          >
+            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            <span>إضافة زبون</span>
+          </button>
           <button
             onClick={() => { setShowPaymentForm(true); }}
             className="flex items-center gap-3 px-8 py-4 bg-emerald-700 text-white rounded-[22px] font-bold hover:bg-emerald-800 transition-all shadow-xl shadow-emerald-900/10 group transform active:scale-95"
@@ -546,6 +581,53 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+      {showAddCustomerForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[48px] w-full max-w-md p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl font-black text-black">إضافة زبون جديد</h2>
+              <button onClick={() => { setShowAddCustomerForm(false); setNewCustomerName(""); setNewCustomerPhone(""); }} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleAddCustomer} className="space-y-6 text-right">
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">اسم الزبون <span className="text-rose-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right"
+                  placeholder="مثلاً: أحمد محمد"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">رقم الهاتف</label>
+                <input
+                  type="text"
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right"
+                  placeholder="05xxxxxxxxx"
+                />
+              </div>
+              <div className="p-5 bg-amber-50 rounded-3xl border border-amber-100 text-right">
+                <p className="text-xs font-bold text-amber-700">📋 سيتم إنشاء حساب جديد بدون ديون مبدئية</p>
+                <p className="text-[11px] text-amber-600 mt-1">يمكنك إضافة عمليات الدين والدفع لاحقاً</p>
+              </div>
+              <div className="pt-2">
+                <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-xl hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]">
+                  ✓ حفظ وإضافة الزبون
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showFlourForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
