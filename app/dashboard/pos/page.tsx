@@ -89,7 +89,7 @@ export default function POSPage() {
 
     if (!error) {
       // Deduct from POS balance
-      const newBalance = pos.balance - totalCost;
+      const newBalance = (pos.balance ?? 0) - totalCost;
       await supabase.from("pos").update({ balance: newBalance }).eq("id", pos.id);
       
       // Log transaction
@@ -114,7 +114,7 @@ export default function POSPage() {
     if (!pos || !depositAmount) return;
 
     const amount = parseFloat(depositAmount);
-    const newBalance = pos.balance + amount;
+    const newBalance = (pos.balance ?? 0) + amount;
     const { error } = await supabase.from("pos").update({ balance: newBalance }).eq("id", pos.id);
 
     if (!error) {
@@ -207,7 +207,7 @@ export default function POSPage() {
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي رصيد المحافظ</p>
-           <h2 className="text-3xl font-black text-emerald-600 font-sans">{posList.reduce((acc, p) => acc + p.balance, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
+           <h2 className="text-3xl font-black text-emerald-600 font-sans">{posList.reduce((acc, p) => acc + (p.balance ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">تحصيل اليوم المتوقع</p>
@@ -225,14 +225,14 @@ export default function POSPage() {
                    <h4 className="text-xl font-black text-gray-800 group-hover:text-amber-800 transition-colors">{pos.name}</h4>
                    <p className="text-gray-400 text-sm font-bold mt-1">{pos.contact}</p>
                  </div>
-                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${pos.balance >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                   {pos.balance >= 0 ? 'رصيد إيجابي' : 'مدين'}
+                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${(pos.balance ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                   {(pos.balance ?? 0) >= 0 ? 'رصيد إيجابي' : 'مدين'}
                  </span>
                </div>
                <div className="flex items-center justify-between mt-4">
                  <div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">الرصيد الحالي</p>
-                   <p className={`text-2xl font-black font-sans ${pos.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{pos.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</p>
+                   <p className={`text-2xl font-black font-sans ${(pos.balance ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(pos.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</p>
                  </div>
                  <button 
                    onClick={() => fetchPosHistory(pos.id)}
@@ -271,11 +271,11 @@ export default function POSPage() {
                   <td className="px-8 py-6">
                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">{record.item}</span>
                   </td>
-                  <td className="px-8 py-6 font-black text-gray-800 font-sans">{record.net.toLocaleString('en-US')}</td>
+                  <td className="px-8 py-6 font-black text-gray-800 font-sans">{(record.net ?? 0).toLocaleString('en-US')}</td>
                   <td className="px-8 py-6 font-black text-rose-600 font-sans">{record.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
                      <span className="font-black text-emerald-600 text-lg font-sans">
-                       {posList.find(p => p.id === record.pos_id)?.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                       {(.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                      </span>
                   </td>
                 </tr>
@@ -358,7 +358,7 @@ export default function POSPage() {
                 <select required value={selectedPOS} onChange={(e) => setSelectedPOS(e.target.value)}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black text-right">
                   <option value="">اختر النقطة...</option>
-                  {posList.map(p => <option key={p.id} value={p.id}>{p.name} (الرصيد: {p.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪)</option>)}
+                  {posList.map(p => <option key={p.id} value={p.id}>{p.name} (الرصيد: {(p.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪)</option>)}
                 </select>
               </div>
               <div>
@@ -445,7 +445,7 @@ export default function POSPage() {
                        <td className="py-6 px-4 font-black text-gray-800 font-regular">{tx.item}</td>
                        <td className="py-6 px-4 font-black text-gray-800">{tx.quantity?.toLocaleString('en-US') || '-'}</td>
                        <td className={`py-6 px-4 font-black text-lg ${tx.type === 'supply' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                         {tx.type === 'supply' ? '-' : '+'}{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                         {tx.type === 'supply' ? '-' : '+'}{(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                        </td>
                      </tr>
                    )) : (
@@ -460,7 +460,7 @@ export default function POSPage() {
             <div className="p-10 bg-black text-white flex justify-between items-center rounded-t-[40px]">
                <div className="text-right">
                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">الرصيد الحالي في المحفظة</p>
-                 <h3 className="text-4xl font-black font-sans">{posList.find(p => p.id === Number(selectedPOS))?.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
+                 <h3 className="text-4xl font-black font-sans">{(.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
                </div>
                <div className="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
                  <p className="text-xs font-bold text-emerald-400 mb-1">حالة الحساب</p>

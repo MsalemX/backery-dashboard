@@ -183,14 +183,14 @@ export default function BreadTypesPage() {
                <div className="flex justify-between items-start mb-3 text-right" dir="rtl">
                   <h3 className="text-xl font-black text-gray-800">{item.name}</h3>
                   <div className="text-left">
-                    <span className="text-2xl font-black text-amber-700 font-sans">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-2xl font-black text-amber-700 font-sans">{(item.price ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <span className="text-xs font-bold text-gray-400 mr-1">₪</span>
                   </div>
                </div>
                
                <div className="flex items-center gap-2 mb-4" dir="rtl">
-                  <div className={`px-3 py-1 rounded-lg text-[11px] font-black ${item.stock > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                    المتوفر: <span className="font-sans">{item.stock.toLocaleString('en-US')}</span> {item.unit}
+                  <div className={`px-3 py-1 rounded-lg text-[11px] font-black ${(item.stock ?? 0) > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    المتوفر: <span className="font-sans">{(item.stock ?? 0).toLocaleString('en-US')}</span> {item.unit}
                   </div>
                   <div className="text-[10px] text-gray-400 font-bold font-sans">
                     أضيف في: {new Date(item.created_at).toLocaleDateString("en-US")}

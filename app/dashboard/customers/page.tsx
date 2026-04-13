@@ -259,19 +259,19 @@ export default function CustomersPage() {
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي الديون المستحقة</p>
            <h2 className="text-3xl font-black text-rose-600 font-sans">
-             {customers.reduce((acc, c) => acc + c.debt, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+             {customers.reduce((acc, c) => acc + (c.debt ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
            </h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي المسدّد</p>
            <h2 className="text-3xl font-black text-emerald-600 font-sans">
-             {customers.reduce((acc, c) => acc + c.total_paid, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+             {customers.reduce((acc, c) => acc + (c.total_paid ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
            </h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
            <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">عدد الزبائن المدينين</p>
            <h2 className="text-3xl font-black text-amber-800 font-sans">
-             {customers.filter(c => c.debt > 0).length.toLocaleString('en-US')}
+             {customers.filter(c => (c.debt ?? 0) > 0).length.toLocaleString('en-US')}
            </h2>
         </div>
       </div>
@@ -318,10 +318,10 @@ export default function CustomersPage() {
                 >
                   <td className="px-8 py-6 font-bold text-gray-800">{c.name}</td>
                   <td className="px-8 py-6 text-gray-400 font-sans">{c.phone}</td>
-                  <td className="px-8 py-6 font-bold text-gray-500 font-sans">{c.total_paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
+                  <td className="px-8 py-6 font-bold text-gray-500 font-sans">{(c.total_paid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
-                    <span className={`font-black text-lg font-sans ${c.debt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {c.debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                    <span className={`font-black text-lg font-sans ${(c.debt ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {(c.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                     </span>
                   </td>
                   <td className="px-8 py-6">
@@ -414,7 +414,7 @@ export default function CustomersPage() {
                 <select required value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black text-right">
                   <option value="">اختر الزبون...</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name} (مدين بـ {c.debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪)</option>)}
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name} (مدين بـ {(c.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪)</option>)}
                 </select>
               </div>
               <div>
@@ -541,10 +541,10 @@ export default function CustomersPage() {
                       <td className="px-6 py-4 text-gray-500 font-medium text-sm font-regular">{tx.item || "—"}</td>
                       <td className="px-6 py-4 text-gray-500 font-bold text-sm">{tx.quantity?.toLocaleString('en-US') || "—"}</td>
                       <td className="px-6 py-4 font-black text-rose-600">
-                        {tx.type === 'credit' ? `${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
+                        {tx.type === 'credit' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
                       </td>
                       <td className="px-6 py-4 font-black text-emerald-600">
-                        {tx.type === 'payment' ? `${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
+                        {tx.type === 'payment' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
                       </td>
                     </tr>
                   ))}
@@ -555,19 +555,19 @@ export default function CustomersPage() {
             <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-center" dir="rtl">
                <div className="flex flex-col items-end">
                   <span className="text-xl font-black text-rose-600 font-sans tracking-tighter">
-                    {customers.find(c => c.id === Number(selectedCustomerId))?.debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                    {(.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                   </span>
                   <span className="text-[10px] font-bold text-gray-400">الدين المالي</span>
                   <div className="flex gap-4 mt-2 border-t border-gray-50 pt-2">
                      <div className="text-center">
                        <p className="text-[11px] font-black text-blue-600 font-sans">
-                         {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_credit || 0).toLocaleString('en-US')} كجم
+                         {((.flour_credit ?? 0) || 0).toLocaleString('en-US')} كجم
                        </p>
                        <p className="text-[9px] font-bold text-gray-400">طحين له</p>
                      </div>
                      <div className="text-center">
                        <p className="text-[11px] font-black text-amber-600 font-sans">
-                         {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_debt || 0).toLocaleString('en-US')} كجم
+                         {((.flour_debt ?? 0) || 0).toLocaleString('en-US')} كجم
                        </p>
                        <p className="text-[9px] font-bold text-gray-400">طحين عليه</p>
                      </div>
