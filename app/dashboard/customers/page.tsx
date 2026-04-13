@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 type Customer = { 
   id: number; 
@@ -27,9 +28,11 @@ export default function CustomersPage() {
   const [showCreditForm, setShowCreditForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showFlourForm, setShowFlourForm] = useState(false);
-  const [showStatement, setShowStatement] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showEditOptions, setShowEditOptions] = useState(false);
   const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,8 +42,6 @@ export default function CustomersPage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [flourAmount, setFlourAmount] = useState("");
   const [flourType, setFlourType] = useState<"credit" | "debt">("credit");
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole") || "admin";
@@ -221,7 +222,7 @@ export default function CustomersPage() {
     setShowEditOptions(true);
   };
 
-  const [showEditOptions, setShowEditOptions] = useState(false);
+
 
   const startPress = (customer: Customer) => {
     const timer = setTimeout(() => handleLongPress(customer), 600);
@@ -362,12 +363,14 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center gap-2">
-                       <button
-                          className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase whitespace-nowrap"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowStatement(true); }}
+                       <Link
+                          target="_blank"
+                          href={`/dashboard/customers/${c.id}/statement`}
+                          className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase whitespace-nowrap inline-flex items-center"
+                          onClick={(e) => e.stopPropagation()}
                        >
                          كشف حساب
-                       </button>
+                       </Link>
                        <button
                           className="text-white bg-amber-800 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-amber-900 transition-all uppercase"
                           onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowCreditForm(true); }}
@@ -488,7 +491,7 @@ export default function CustomersPage() {
             <h3 className="text-2xl font-black text-gray-800 text-center mb-8">{editingCustomer.name}</h3>
             <div className="grid grid-cols-1 gap-4">
               <button 
-                onClick={() => { setShowEditOptions(false); setShowStatement(true); }}
+                onClick={() => { setShowEditOptions(false); window.open(`/dashboard/customers/${editingCustomer.id}/statement`, '_blank'); }}
                 className="w-full py-5 bg-blue-50 text-blue-700 rounded-2xl font-black text-lg hover:bg-blue-100 transition-all flex items-center justify-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -557,100 +560,7 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {showStatement && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[48px] w-full max-w-4xl p-10 shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex justify-between items-center mb-8" dir="rtl">
-              <div>
-                <h2 className="text-3xl font-black text-black">كشف حساب مفصل</h2>
-                <p className="text-gray-500 font-bold mt-1">الزبون: {customers.find(c => c.id === Number(selectedCustomerId))?.name}</p>
-              </div>
-              <button onClick={() => setShowStatement(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            
-            <div className="overflow-y-auto flex-1 text-right" dir="rtl">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
-                    <th className="px-6 py-4">التاريخ</th>
-                    <th className="px-6 py-4">البيان</th>
-                    <th className="px-6 py-4">الصنف</th>
-                    <th className="px-6 py-4">الكمية</th>
-                    <th className="px-6 py-4">مدين (أخذ)</th>
-                    <th className="px-6 py-4">دائن (دفع)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {transactions.filter(tx => tx.customer_id === Number(selectedCustomerId)).map((tx) => (
-                    <tr key={tx.id} className="hover:bg-gray-50/50 font-sans">
-                      <td className="px-6 py-4 text-gray-400 text-xs">{tx.date}</td>
-                      <td className="px-6 py-4 font-bold text-gray-800 text-sm font-regular">
-                        {tx.type === 'credit' ? 'شراء بضاعة' : 'تسديد مبلغ'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 font-medium text-sm font-regular">{tx.item || "—"}</td>
-                      <td className="px-6 py-4 text-gray-500 font-bold text-sm">{tx.quantity?.toLocaleString('en-US') || "—"}</td>
-                      <td className="px-6 py-4 font-black text-rose-600">
-                        {tx.type === 'credit' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
-                      </td>
-                      <td className="px-6 py-4 font-black text-emerald-600">
-                        {tx.type === 'payment' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
-            <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-center" dir="rtl">
-               <div className="flex flex-col items-end">
-                  {(() => {
-                    const customerTransactions = transactions.filter(t => t.customer_id === Number(selectedCustomerId));
-                    const totalPurchases = customerTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + (t.amount || 0), 0);
-                    const totalPayments = customerTransactions.filter(t => t.type === 'payment').reduce((acc, t) => acc + (t.amount || 0), 0);
-                    const netBalance = totalPayments - totalPurchases;
-
-                    return netBalance >= 0 ? (
-                      <div className="text-right">
-                        <span className="text-3xl font-black text-emerald-600 font-sans tracking-tighter">
-                          {netBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                        </span>
-                        <p className="text-[10px] font-black text-emerald-500 uppercase">الرصيد النهائي: باقي لـه (دائن)</p>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <span className="text-3xl font-black text-rose-600 font-sans tracking-tighter">
-                          {Math.abs(netBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                        </span>
-                        <p className="text-[10px] font-black text-rose-500 uppercase">الرصيد النهائي: باقي عليه (مدين)</p>
-                      </div>
-                    );
-                  })()}
-                  
-                  <div className="flex gap-4 mt-4 border-t border-gray-50 pt-4">
-                     <div className="text-center px-4">
-                        <p className="text-[12px] font-black text-blue-600 font-sans">
-                          {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_credit ?? 0).toLocaleString('en-US')} كجم
-                        </p>
-                        <p className="text-[9px] font-bold text-gray-400 uppercase">طحين له</p>
-                     </div>
-                     <div className="text-center px-4 border-r border-gray-100">
-                        <p className="text-[12px] font-black text-amber-600 font-sans">
-                          {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_debt ?? 0).toLocaleString('en-US')} كجم
-                        </p>
-                        <p className="text-[9px] font-bold text-gray-400 uppercase">طحين عليه</p>
-                     </div>
-                  </div>
-               </div>
-               <button onClick={() => window.print()} className="px-8 py-5 bg-black text-white rounded-[24px] font-black text-lg hover:bg-gray-800 transition-all flex items-center gap-3 shadow-xl shadow-gray-900/10">
-                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2h6a2 2 0 002 2v4" /></svg>
-                 طباعة الكشف
-               </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showAddCustomerForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[48px] w-full max-w-md p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
