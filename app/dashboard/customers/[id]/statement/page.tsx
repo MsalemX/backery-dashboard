@@ -126,85 +126,46 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ id
            </div>
         </div>
 
-        {/* Section 1: Financial Activity */}
-        <div className="mb-16">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-10 w-2 bg-emerald-600 rounded-full"></div>
-            <h3 className="text-2xl font-black text-gray-800">سجل الحركة المالية (المبالغ)</h3>
-          </div>
-          <div className="overflow-x-auto bg-white rounded-[2.5rem] border border-gray-100 shadow-sm">
-            <table className="w-full text-right">
-              <thead>
-                <tr className="bg-emerald-50/30 text-emerald-800/40 text-[10px] font-black uppercase tracking-widest border-b border-emerald-50">
-                  <th className="px-6 py-5">تاريخ العملية</th>
-                  <th className="px-6 py-5">البيان</th>
-                  <th className="px-6 py-5">مدين (أخذ بالدين)</th>
-                  <th className="px-6 py-5">دائن (مسدد نقداً)</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right">
+            <thead>
+              <tr className="bg-white/50 text-gray-400 text-[11px] font-black uppercase tracking-widest border-b border-gray-100/50">
+                <th className="px-6 py-5">تاريخ العملية</th>
+                <th className="px-6 py-5">البيان</th>
+                <th className="px-6 py-5">الصنف</th>
+                <th className="px-6 py-5">الكمية</th>
+                <th className="px-6 py-5">مدين (أخذ)</th>
+                <th className="px-6 py-5">دائن (دفع)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100/50">
+              {transactions.map((tx) => (
+                <tr key={tx.id} className="hover:bg-white/30 transition-colors group">
+                  <td className="px-6 py-5 text-gray-400 font-sans text-sm">{tx.date}</td>
+                  <td className="px-6 py-5 font-black text-gray-800">
+                    {tx.type === 'credit' ? 'شراء بضاعة' : 'تسديد مبلغ مالي'}
+                  </td>
+                  <td className="px-6 py-5 text-gray-500 font-bold">{tx.item || "—"}</td>
+                  <td className="px-6 py-5 text-gray-500 font-black font-sans">{tx.quantity?.toLocaleString('en-US') || "—"}</td>
+                  <td className="px-6 py-5 font-black text-rose-600 font-sans">
+                    {tx.type === 'credit' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
+                  </td>
+                  <td className="px-6 py-5 font-black text-emerald-600 font-sans">
+                    {tx.type === 'payment' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {transactions.filter(t => t.type === 'credit' || t.type === 'payment').map((tx) => (
-                  <tr key={tx.id} className="hover:bg-emerald-50/10 transition-colors">
-                    <td className="px-6 py-5 text-gray-400 font-sans text-sm">{tx.date}</td>
-                    <td className="px-6 py-5 font-bold text-gray-800">
-                      {tx.type === 'credit' ? `شراء: ${tx.item}` : 'تسديد مبلغ مالي'}
-                    </td>
-                    <td className="px-6 py-5 font-black text-rose-600 font-sans">
-                      {tx.type === 'credit' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
-                    </td>
-                    <td className="px-6 py-5 font-black text-emerald-600 font-sans">
-                      {tx.type === 'payment' ? `${(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪` : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Section 2: Withdrawal Activity */}
-        <div className="mb-12">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-10 w-2 bg-amber-600 rounded-full"></div>
-            <h3 className="text-2xl font-black text-gray-800">سجل حركة السحب والاستهلاك (الكميات)</h3>
-          </div>
-          <div className="overflow-x-auto bg-white rounded-[2.5rem] border border-gray-100 shadow-sm">
-            <table className="w-full text-right">
-              <thead>
-                <tr className="bg-amber-50/30 text-amber-800/40 text-[10px] font-black uppercase tracking-widest border-b border-amber-50">
-                  <th className="px-6 py-5">تاريخ العملية</th>
-                  <th className="px-6 py-5">الصنف المسحوب</th>
-                  <th className="px-6 py-5">الكمية / الوزن</th>
-                  <th className="px-6 py-5">النوع</th>
+              ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-20 text-center text-gray-400 font-bold italic">لا توجد عمليات مسجلة لهذا الزبون حتى الآن</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {transactions.filter(t => t.type !== 'payment').map((tx) => (
-                  <tr key={tx.id} className="hover:bg-amber-50/10 transition-colors">
-                    <td className="px-6 py-5 text-gray-400 font-sans text-sm">{tx.date}</td>
-                    <td className="px-6 py-5 font-bold text-gray-800">{tx.item || "—"}</td>
-                    <td className="px-6 py-5 font-black text-amber-900 font-sans">
-                      {tx.quantity?.toLocaleString('en-US')} {tx.item === 'طحين' ? 'كجم' : 'حبة'}
-                    </td>
-                    <td className="px-6 py-5">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${
-                        tx.type === 'flour_deposit' ? 'bg-blue-100 text-blue-700' : 
-                        tx.type === 'flour_usage' ? 'bg-amber-100 text-amber-700' :
-                        'bg-rose-100 text-rose-700'
-                      }`}>
-                        {tx.type === 'flour_deposit' ? 'إيداع طحين' : 
-                         tx.type === 'flour_usage' ? 'سحب طحين' : 'شراء خبز'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Bottom Summary (Flour) */}
-        <div className="mt-16 pt-12 border-t border-gray-200 grid grid-cols-2 gap-8 text-center max-w-2xl mx-auto">
+        <div className="mt-12 pt-12 border-t border-gray-100 grid grid-cols-2 gap-8 text-center max-w-2xl mx-auto">
            <div className="p-6 bg-white rounded-3xl border border-gray-50 shadow-sm">
               <p className="text-2xl font-black text-blue-600 font-sans mb-1">
                 {(customer.flour_credit ?? 0).toLocaleString('en-US')} كجم
