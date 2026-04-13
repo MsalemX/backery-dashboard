@@ -83,14 +83,20 @@ export default function CustomersPage() {
     });
 
     if (!txErr) {
-      const credit = customer.financial_credit || 0;
-      const appliedFromCredit = Math.min(totalCost, credit);
+      const currentDebt = Number(customer.debt || 0);
+      const currentCredit = Number(customer.financial_credit || 0);
+      
+      const appliedFromCredit = Math.min(totalCost, currentCredit);
       const remainingCost = totalCost - appliedFromCredit;
 
-      await supabase.from("customers").update({ 
-        debt: (customer.debt ?? 0) + remainingCost,
-        financial_credit: credit - appliedFromCredit
+      const { error: updateErr } = await supabase.from("customers").update({ 
+        debt: currentDebt + remainingCost,
+        financial_credit: currentCredit - appliedFromCredit
       }).eq("id", customer.id);
+      
+      if (updateErr) {
+        alert("خطأ في تحديث الرصيد: " + updateErr.message);
+      }
       fetchData();
     }
     setShowCreditForm(false);
@@ -114,15 +120,21 @@ export default function CustomersPage() {
     });
 
     if (!txErr) {
-      const currentDebt = customer.debt || 0;
+      const currentDebt = Number(customer.debt || 0);
+      const currentCredit = Number(customer.financial_credit || 0);
+      
       const appliedToDebt = Math.min(paidAmount, currentDebt);
       const extra = paidAmount - appliedToDebt;
       
-      await supabase.from("customers").update({
+      const { error: updateErr } = await supabase.from("customers").update({
         debt: currentDebt - appliedToDebt,
-        financial_credit: (customer.financial_credit || 0) + extra,
-        total_paid: (customer.total_paid ?? 0) + paidAmount,
+        financial_credit: currentCredit + extra,
+        total_paid: Number(customer.total_paid || 0) + paidAmount,
       }).eq("id", customer.id);
+
+      if (updateErr) {
+        alert("خطأ في تحديث الرصيد: " + updateErr.message);
+      }
       fetchData();
     }
     setShowPaymentForm(false);
