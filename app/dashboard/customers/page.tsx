@@ -355,13 +355,15 @@ export default function CustomersPage() {
                         <span className="text-[10px] font-bold text-rose-500 uppercase">باقي عليه (مدين)</span>
                       </div>
                     ) : (
-                      <span className="text-gray-400 font-bold">خالص</span>
+                      <div className="flex justify-end pr-4">
+                        <span className="text-gray-400 font-bold">خالص</span>
+                      </div>
                     )}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center gap-2">
                        <button
-                          className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase"
+                          className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase whitespace-nowrap"
                           onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowStatement(true); }}
                        >
                          كشف حساب
@@ -377,6 +379,21 @@ export default function CustomersPage() {
                           onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowPaymentForm(true); }}
                        >
                          $ دفع
+                       </button>
+                       <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                       <button
+                          className="text-gray-400 hover:text-amber-600 p-1.5 transition-all"
+                          onClick={(e) => { e.stopPropagation(); setEditingCustomer(c); setShowEditForm(true); }}
+                          title="تعديل"
+                       >
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                       </button>
+                       <button
+                          className="text-gray-400 hover:text-rose-600 p-1.5 transition-all"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(c.id); }}
+                          title="حذف"
+                       >
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                        </button>
                     </div>
                   </td>
