@@ -588,21 +588,28 @@ export default function CustomersPage() {
 
             <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-center" dir="rtl">
                <div className="flex flex-col items-end">
-                  {((customers.find(c => c.id === Number(selectedCustomerId))?.financial_credit ?? 0) > 0) ? (
-                    <div className="text-right">
-                      <span className="text-2xl font-black text-emerald-600 font-sans tracking-tighter">
-                        {(customers.find(c => c.id === Number(selectedCustomerId))?.financial_credit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                      </span>
-                      <p className="text-[10px] font-black text-emerald-500">الرصيد النهائي: باقي لـه (دائن)</p>
-                    </div>
-                  ) : (
-                    <div className="text-right">
-                      <span className="text-2xl font-black text-rose-600 font-sans tracking-tighter">
-                        {(customers.find(c => c.id === Number(selectedCustomerId))?.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                      </span>
-                      <p className="text-[10px] font-black text-rose-500">الرصيد النهائي: باقي عليه (مدين)</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const customerTransactions = transactions.filter(t => t.customer_id === Number(selectedCustomerId));
+                    const totalPurchases = customerTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + (t.amount || 0), 0);
+                    const totalPayments = customerTransactions.filter(t => t.type === 'payment').reduce((acc, t) => acc + (t.amount || 0), 0);
+                    const netBalance = totalPayments - totalPurchases;
+
+                    return netBalance >= 0 ? (
+                      <div className="text-right">
+                        <span className="text-3xl font-black text-emerald-600 font-sans tracking-tighter">
+                          {netBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                        </span>
+                        <p className="text-[10px] font-black text-emerald-500 uppercase">الرصيد النهائي: باقي لـه (دائن)</p>
+                      </div>
+                    ) : (
+                      <div className="text-right">
+                        <span className="text-3xl font-black text-rose-600 font-sans tracking-tighter">
+                          {Math.abs(netBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                        </span>
+                        <p className="text-[10px] font-black text-rose-500 uppercase">الرصيد النهائي: باقي عليه (مدين)</p>
+                      </div>
+                    );
+                  })()}
                   
                   <div className="flex gap-4 mt-4 border-t border-gray-50 pt-4">
                      <div className="text-center px-4">
