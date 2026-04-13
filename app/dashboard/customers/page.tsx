@@ -555,20 +555,20 @@ export default function CustomersPage() {
             <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-center" dir="rtl">
                <div className="flex flex-col items-end">
                   <span className="text-xl font-black text-rose-600 font-sans tracking-tighter">
-                    {(.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                    {(customers.find(c => c.id === Number(selectedCustomerId))?.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                   </span>
                   <span className="text-[10px] font-bold text-gray-400">الدين المالي</span>
                   <div className="flex gap-4 mt-2 border-t border-gray-50 pt-2">
                      <div className="text-center">
-                       <p className="text-[11px] font-black text-blue-600 font-sans">
-                         {((.flour_credit ?? 0) || 0).toLocaleString('en-US')} كجم
-                       </p>
+                        <p className="text-[11px] font-black text-blue-600 font-sans">
+                          {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_credit ?? 0).toLocaleString('en-US')} كجم
+                        </p>
                        <p className="text-[9px] font-bold text-gray-400">طحين له</p>
                      </div>
                      <div className="text-center">
-                       <p className="text-[11px] font-black text-amber-600 font-sans">
-                         {((.flour_debt ?? 0) || 0).toLocaleString('en-US')} كجم
-                       </p>
+                        <p className="text-[11px] font-black text-amber-600 font-sans">
+                          {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_debt ?? 0).toLocaleString('en-US')} كجم
+                        </p>
                        <p className="text-[9px] font-bold text-gray-400">طحين عليه</p>
                      </div>
                   </div>

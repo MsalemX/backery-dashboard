@@ -274,9 +274,9 @@ export default function POSPage() {
                   <td className="px-8 py-6 font-black text-gray-800 font-sans">{(record.net ?? 0).toLocaleString('en-US')}</td>
                   <td className="px-8 py-6 font-black text-rose-600 font-sans">{record.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
-                     <span className="font-black text-emerald-600 text-lg font-sans">
-                       {(.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                     </span>
+                      <span className="font-black text-emerald-600 text-lg font-sans">
+                        {(posList.find(p => p.id === record.pos_id)?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                      </span>
                   </td>
                 </tr>
               ))}
@@ -460,7 +460,7 @@ export default function POSPage() {
             <div className="p-10 bg-black text-white flex justify-between items-center rounded-t-[40px]">
                <div className="text-right">
                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">الرصيد الحالي في المحفظة</p>
-                 <h3 className="text-4xl font-black font-sans">{(.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
+                 <h3 className="text-4xl font-black font-sans">{(posList.find(p => p.id === Number(selectedPOS))?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
                </div>
                <div className="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
                  <p className="text-xs font-bold text-emerald-400 mb-1">حالة الحساب</p>
