@@ -95,7 +95,7 @@ export default function CustomerDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
         <PremiumChartCard
           title="رصيدك المدين"
-          value={customer.debt.toFixed(2)}
+          value={customer.debt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           unit="₪"
           subText="المبلغ المتبقي المترصد في ذمتك"
           data={getDebtTrend()}
@@ -105,7 +105,7 @@ export default function CustomerDashboard() {
         />
         <PremiumChartCard
           title="إجمالي المدفوعات"
-          value={customer.total_paid.toFixed(2)}
+          value={customer.total_paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           unit="₪"
           subText="إجمالي المبالغ المسددة حتى الآن"
           data={getPaymentTrend()}
@@ -138,16 +138,16 @@ export default function CustomerDashboard() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {transactions.map((tx) => (
-                <tr key={tx.id} className="group hover:bg-amber-50/20 transition-colors">
-                  <td className="px-8 py-6 text-gray-400 font-sans">{tx.date}</td>
+                <tr key={tx.id} className="group hover:bg-amber-50/20 transition-colors font-sans">
+                  <td className="px-8 py-6 text-gray-400">{tx.date}</td>
                   <td className="px-8 py-6">
-                    <span className={`font-bold ${tx.type === 'credit' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <span className={`font-bold font-regular ${tx.type === 'credit' ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {tx.type === 'credit' ? 'شراء بالدين' : 'دفعة نقدية'}
                     </span>
                   </td>
-                  <td className="px-8 py-6 font-bold text-gray-800">{tx.item || "-"}</td>
-                  <td className="px-8 py-6 text-gray-500 font-sans">{tx.quantity || "-"}</td>
-                  <td className="px-8 py-6 font-black text-lg text-gray-800">{tx.amount.toFixed(2)} ₪</td>
+                  <td className="px-8 py-6 font-bold text-gray-800 font-regular">{tx.item || "-"}</td>
+                  <td className="px-8 py-6 text-gray-500">{tx.quantity?.toLocaleString('en-US') || "-"}</td>
+                  <td className="px-8 py-6 font-black text-lg text-gray-800">{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                 </tr>
               ))}
             </tbody>

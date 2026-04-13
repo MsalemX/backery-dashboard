@@ -81,7 +81,7 @@ export default function PremiumChartCard({
              </h3>
              {icon && <div className={`${selectedColor.text} opacity-70`}>{icon}</div>}
           </div>
-          <h2 className={`text-3xl font-black ${selectedColor.text} tracking-tight`}>
+          <h2 className={`text-3xl font-black ${selectedColor.text} tracking-tight font-sans`}>
             {value} <span className="text-sm font-medium">{unit}</span>
           </h2>
         </div>

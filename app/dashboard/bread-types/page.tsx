@@ -3,7 +3,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
-type BreadType = { id: number; name: string; price: string; description: string };
+type BreadType = { 
+  id: number; 
+  name: string; 
+  price: number; 
+  description: string; 
+  stock: number; 
+  unit: string; 
+  image_url: string; 
+  created_at: string 
+};
 
 export default function BreadTypesPage() {
   const [role, setRole] = useState("");
@@ -11,7 +20,19 @@ export default function BreadTypesPage() {
   const [items, setItems] = useState<BreadType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", price: "", description: "" });
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedItemHistory, setSelectedItemHistory] = useState<any[]>([]);
+  const [selectedItemName, setSelectedItemName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [newItem, setNewItem] = useState({ 
+    name: "", 
+    price: "", 
+    description: "", 
+    stock: "0", 
+    unit: "كيلو", 
+    image_url: "" 
+  });
 
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole") || "admin";
@@ -26,22 +47,52 @@ export default function BreadTypesPage() {
     setLoading(false);
   };
 
-  const filteredItems = items.filter(item => item.name.includes(searchTerm));
-
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data, error } = await supabase.from("bread_types").insert({
+    setUploading(true);
+    let finalImageUrl = newItem.image_url;
+
+    if (selectedFile) {
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `breads/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('bread-images')
+        .upload(filePath, selectedFile);
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('bread-images')
+          .getPublicUrl(filePath);
+        finalImageUrl = publicUrl;
+      }
+    }
+
+    const { error } = await supabase.from("bread_types").insert({
       name: newItem.name,
-      price: parseFloat(newItem.price),
+      price: Number(newItem.price),
+      stock: Number(newItem.stock),
+      unit: newItem.unit,
       description: newItem.description,
-    }).select();
-    console.log("INSERT RESULT:", { data, error });
+      image_url: finalImageUrl,
+    });
+
+    setUploading(false);
     if (!error) {
       fetchBreadTypes();
       setShowForm(false);
-      setNewItem({ name: "", price: "", description: "" });
+      setNewItem({ 
+        name: "", 
+        price: "", 
+        description: "", 
+        stock: "", 
+        unit: "كيلو", 
+        image_url: "" 
+      });
+      setSelectedFile(null);
     } else {
-      alert("خطأ: " + error.message + "\nCode: " + error.code);
+      alert("خطأ: " + error.message);
     }
   };
 
@@ -49,6 +100,28 @@ export default function BreadTypesPage() {
     await supabase.from("bread_types").delete().eq("id", id);
     setItems(items.filter(i => i.id !== id));
   };
+
+  const fetchHistory = async (itemName: string) => {
+    setSelectedItemName(itemName);
+    setShowHistory(true);
+    
+    const [posRecs, custRecs] = await Promise.all([
+      supabase.from("pos_records").select("*").eq("item", itemName).order("date", { ascending: false }),
+      supabase.from("customer_transactions").select("*").eq("item", itemName).order("date", { ascending: false })
+    ]);
+
+    const combined = [
+      ...(posRecs.data || []).map(r => ({ date: r.date, who: r.pos_name, type: 'نقطة بيع', qty: r.net })),
+      ...(custRecs.data || []).map(r => ({ date: r.date, who: 'زبون', type: 'شراء مباشر', qty: r.quantity }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    setSelectedItemHistory(combined);
+  };
+
+  const filteredItems = items.filter((item) =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;
 
@@ -92,22 +165,48 @@ export default function BreadTypesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {filteredItems.map((item) => (
           <div key={item.id} className="group bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden hover:shadow-2xl hover:shadow-gray-200/50 transition-all duration-500 hover:-translate-y-2">
-            <div className="h-40 bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
-              <span className="text-6xl">🍞</span>
+            <div className="h-40 bg-gray-100 relative overflow-hidden flex items-center justify-center">
+              {item.image_url ? (
+                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+              ) : (
+                <div className="bg-gradient-to-br from-amber-100 to-amber-200 w-full h-full flex items-center justify-center">
+                  <span className="text-6xl">🍞</span>
+                </div>
+              )}
+              <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-xl text-[10px] font-black text-amber-900 shadow-sm">
+                 يُباع بـ <span className="text-sm font-sans">{item.unit}</span>
+              </div>
             </div>
             <div className="p-8">
-               <div className="flex justify-between items-start mb-3">
+               <div className="flex justify-between items-start mb-3 text-right" dir="rtl">
                   <h3 className="text-xl font-black text-gray-800">{item.name}</h3>
-                  <div className="text-right">
-                    <span className="text-2xl font-black text-amber-700">{item.price}</span>
+                  <div className="text-left">
+                    <span className="text-2xl font-black text-amber-700 font-sans">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <span className="text-xs font-bold text-gray-400 mr-1">₪</span>
                   </div>
                </div>
-               <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8 line-clamp-2">
+               
+               <div className="flex items-center gap-2 mb-4" dir="rtl">
+                  <div className={`px-3 py-1 rounded-lg text-[11px] font-black ${item.stock > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    المتوفر: <span className="font-sans">{item.stock.toLocaleString('en-US')}</span> {item.unit}
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-bold font-sans">
+                    أضيف في: {new Date(item.created_at).toLocaleDateString("en-US")}
+                  </div>
+               </div>
+
+               <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8 line-clamp-2 text-right">
                  {item.description}
                </p>
-               {role !== "worker" && (
-                 <div className="flex gap-3">
+               <div className="flex gap-3">
+                  <button 
+                    onClick={() => fetchHistory(item.name)}
+                    className="flex-1 py-3 bg-blue-50 text-blue-700 rounded-xl font-black text-xs hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    سجل التوزيع
+                  </button>
+                  {role !== "worker" && (
                     <button
                       onClick={() => handleDelete(item.id)}
                       className="px-3 py-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors border border-rose-100"
@@ -116,8 +215,8 @@ export default function BreadTypesPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
-                 </div>
-               )}
+                  )}
+               </div>
             </div>
           </div>
         ))}
@@ -148,7 +247,7 @@ export default function BreadTypesPage() {
                 </svg>
               </button>
             </div>
-            <form onSubmit={handleAddItem} className="space-y-6">
+            <form onSubmit={handleAddItem} className="space-y-6 text-right">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-black text-black mb-2 mr-1">اسم النوع</label>
@@ -163,18 +262,99 @@ export default function BreadTypesPage() {
                     placeholder="0.00" />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المتوفرة</label>
+                  <input type="number" required value={newItem.stock} onChange={(e) => setNewItem({...newItem, stock: e.target.value})}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
+                    placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الوحدة</label>
+                  <select value={newItem.unit} onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black appearance-none">
+                    <option value="كيلو">كيلو</option>
+                    <option value="كيس">كيس</option>
+                    <option value="حبه">حبه</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">رابط صورة الخبز (Image URL)</label>
+                <input type="url" value={newItem.image_url} onChange={(e) => setNewItem({...newItem, image_url: e.target.value})}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black"
+                  placeholder="https://example.com/image.jpg" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">صورة المنتج (من الجهاز)</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-100 border-dashed rounded-[24px] cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                      <p className="mb-2 text-sm text-gray-500 font-bold">{selectedFile ? selectedFile.name : 'اختر صورة للمنتج'}</p>
+                      <p className="text-xs text-gray-400">PNG, JPG or WebP</p>
+                    </div>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-black text-black mb-2 mr-1">الوصف</label>
                 <textarea value={newItem.description} onChange={(e) => setNewItem({...newItem, description: e.target.value})}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black h-32 resize-none"
                   placeholder="وصف مختصر للنوع الجديد..." />
               </div>
-              <div className="pt-4">
-                <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-xl hover:bg-amber-900 transition-all shadow-2xl shadow-amber-900/30 transform active:scale-[0.98]">
-                  تأكيد الإضافة
+              <div className="pt-6">
+                <button type="submit" disabled={uploading}
+                  className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 shadow-xl shadow-amber-900/30 transform active:scale-[0.98] disabled:opacity-50">
+                  {uploading ? 'جاري الرفع والحفظ...' : 'حفظ النوع الجديد'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl p-10 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-8" dir="rtl">
+              <h2 className="text-2xl font-black text-gray-800">سجل توزيع: {selectedItemName}</h2>
+              <button onClick={() => setShowHistory(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 text-right" dir="rtl">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
+                    <th className="px-6 py-4">التاريخ</th>
+                    <th className="px-6 py-4">الجهة</th>
+                    <th className="px-6 py-4">النوع</th>
+                    <th className="px-6 py-4">الكمية</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {selectedItemHistory.map((h, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 transition-colors font-sans">
+                      <td className="px-6 py-4 text-gray-400 text-xs">{h.date}</td>
+                      <td className="px-6 py-4 font-bold text-gray-800 text-sm font-regular">{h.who}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-500 font-regular">{h.type}</td>
+                      <td className="px-6 py-4 font-black text-amber-900 text-sm">{typeof h.qty === 'number' ? h.qty.toLocaleString('en-US') : h.qty}</td>
+                    </tr>
+                  ))}
+                  {selectedItemHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-gray-400 font-bold">لا توجد سجلات توزيع لهذا الصنف بعد</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

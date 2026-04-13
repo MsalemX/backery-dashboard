@@ -27,10 +27,10 @@ export default async function AccountantDashboard() {
   const maxAmount = topCategories[0]?.[1] || 1;
 
   const financialStats = [
-    { label: "إجمالي المسدّد من العملاء", value: `${totalPaid.toFixed(2)} ₪`, subText: "مجموع الدفعات المستلمة", color: "emerald" },
-    { label: "إجمالي المصروفات", value: `${totalExpenses.toLocaleString()} ₪`, subText: `${expenses.length} عملية مصروف`, color: "rose" },
-    { label: "صافي الأرباح المحتسبة", value: `${netProfit.toFixed(2)} ₪`, subText: "دخل - مصروفات", color: netProfit >= 0 ? "emerald" : "rose" },
-    { label: "إجمالي الديون المستحقة", value: `${totalDebt.toFixed(2)} ₪`, subText: "أرصدة قيد التحصيل", color: "amber" },
+    { label: "إجمالي المسدّد من العملاء", value: `${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "مجموع الدفعات المستلمة", color: "emerald" },
+    { label: "إجمالي المصروفات", value: `${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: `${expenses.length.toLocaleString('en-US')} عملية مصروف`, color: "rose" },
+    { label: "صافي الأرباح المحتسبة", value: `${netProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "دخل - مصروفات", color: netProfit >= 0 ? "emerald" : "rose" },
+    { label: "إجمالي الديون المستحقة", value: `${totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "أرصدة قيد التحصيل", color: "amber" },
   ];
 
   return (
@@ -47,10 +47,10 @@ export default async function AccountantDashboard() {
           <div key={i} className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm relative overflow-hidden">
             <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">{stat.label}</p>
             <div className="flex justify-between items-end">
-              <h2 className={`text-2xl font-extrabold ${stat.color === "rose" ? "text-rose-600" : stat.color === "amber" ? "text-amber-700" : "text-gray-800"}`}>
+              <h2 className={`text-2xl font-extrabold font-sans ${stat.color === "rose" ? "text-rose-600" : stat.color === "amber" ? "text-amber-700" : "text-gray-800"}`}>
                 {stat.value}
               </h2>
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-lg font-sans ${
                 stat.color === "emerald" ? "bg-emerald-50 text-emerald-600" :
                 stat.color === "rose" ? "bg-rose-50 text-rose-600" :
                 "bg-amber-50 text-amber-600"
@@ -80,11 +80,11 @@ export default async function AccountantDashboard() {
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">{exp.description}</p>
-                    <p className="text-xs text-gray-400">{exp.date} • {exp.category}</p>
+                    <p className="text-xs text-gray-400 font-sans">{exp.date} • {exp.category}</p>
                   </div>
                 </div>
-                <div className="text-lg font-extrabold text-rose-600">
-                  -{exp.amount.toLocaleString()} ₪
+                <div className="text-lg font-extrabold text-rose-600 font-sans">
+                  -{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                 </div>
               </div>
             ))}
@@ -101,7 +101,7 @@ export default async function AccountantDashboard() {
                 <div key={i}>
                   <div className="flex justify-between text-xs font-bold mb-2">
                     <span className="text-gray-500">{label}</span>
-                    <span className="text-gray-800">{amount.toLocaleString()} ₪</span>
+                    <span className="text-gray-800 font-sans">{amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</span>
                   </div>
                   <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full ${colors[i]}`} style={{ width: `${percent}%` }}></div>
@@ -110,8 +110,8 @@ export default async function AccountantDashboard() {
               );
             })}
             <div className="mt-8 p-6 bg-amber-50 rounded-2xl border border-amber-100">
-              <p className="text-xs text-amber-900 leading-relaxed">
-                <span className="font-bold">الصافي الموزع:</span> {totalNet.toLocaleString()} قطعة خبز
+              <p className="text-xs text-amber-900 leading-relaxed font-regular">
+                <span className="font-bold">الصافي الموزع:</span> <span className="font-sans font-black">{totalNet.toLocaleString('en-US')}</span> قطعة خبز
               </p>
             </div>
           </div>

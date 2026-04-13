@@ -78,7 +78,7 @@ export default function ExpensesPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
            <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">إجمالي المصروفات</p>
-              <h2 className="text-4xl font-black text-rose-600">{totalThisMonth.toLocaleString()} <span className="text-sm font-medium text-gray-400">₪</span></h2>
+              <h2 className="text-4xl font-black text-rose-600 font-sans">{totalThisMonth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium text-gray-400">₪</span></h2>
            </div>
            <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">أكبر تصنيف مصروفات</p>
@@ -86,7 +86,7 @@ export default function ExpensesPage() {
            </div>
            <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">عدد العمليات</p>
-              <h2 className="text-4xl font-black text-blue-600">{expenses.length} <span className="text-sm font-medium text-gray-400">عملية</span></h2>
+              <h2 className="text-4xl font-black text-blue-600 font-sans">{expenses.length.toLocaleString('en-US')} <span className="text-sm font-medium text-gray-400">عملية</span></h2>
            </div>
         </div>
 
@@ -114,14 +114,14 @@ export default function ExpensesPage() {
                  <tbody className="divide-y divide-gray-50">
                     {expenses.map(exp => (
                        <tr key={exp.id} className="group hover:bg-gray-50/50 transition-colors">
-                          <td className="px-8 py-6 font-bold text-gray-400 text-xs">{exp.date}</td>
+                          <td className="px-8 py-6 font-bold text-gray-400 text-xs font-sans">{exp.date}</td>
                           <td className="px-8 py-6">
                              <span className="px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-black text-gray-600 uppercase">
                                {exp.category}
                              </span>
                           </td>
-                          <td className="px-8 py-6">
-                             <span className="text-lg font-black text-rose-600">{exp.amount.toLocaleString()} ₪</span>
+                          <td className="px-8 py-6 font-sans">
+                             <span className="text-lg font-black text-rose-600">{exp.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</span>
                           </td>
                           <td className="px-8 py-6 font-medium text-gray-700">{exp.description}</td>
                           <td className="px-8 py-6">

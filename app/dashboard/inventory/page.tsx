@@ -10,12 +10,19 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showProductionForm, setShowProductionForm] = useState(false);
   const [isNewItem, setIsNewItem] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [newItemName, setNewItemName] = useState("");
   const [newItemUnit, setNewItemUnit] = useState("كيلو");
   const [newItemThreshold, setNewItemThreshold] = useState("10");
   const [newQuantity, setNewQuantity] = useState("");
+
+  // Production state
+  const [producedQty, setProducedQty] = useState("");
+  const [flourUsed, setFlourUsed] = useState("");
+  const [selectedBread, setSelectedBread] = useState("");
+  const [breadTypes, setBreadTypes] = useState<any[]>([]);
 
   useEffect(() => {
     const savedRole = localStorage.getItem("userRole") || "admin";
@@ -25,8 +32,12 @@ export default function InventoryPage() {
 
   const fetchInventory = async () => {
     setLoading(true);
-    const { data } = await supabase.from("inventory").select("*").order("id");
-    if (data) setInventory(data);
+    const [invRes, breadRes] = await Promise.all([
+      supabase.from("inventory").select("*").order("id"),
+      supabase.from("bread_types").select("id, name").order("id")
+    ]);
+    if (invRes.data) setInventory(invRes.data);
+    if (breadRes.data) setBreadTypes(breadRes.data);
     setLoading(false);
   };
 
@@ -67,6 +78,33 @@ export default function InventoryPage() {
     }
   };
 
+  const handleRecordProduction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!producedQty || !flourUsed) return;
+
+    const { error: logErr } = await supabase.from("production_logs").insert({
+      bread_type: selectedBread,
+      quantity_produced: Number(producedQty),
+      flour_used: Number(flourUsed),
+      date: new Date().toISOString().split("T")[0]
+    });
+
+    if (!logErr) {
+      // Deduct flour from inventory
+      const flourItem = inventory.find(i => i.name.includes("طحين") || i.name.includes("Flour"));
+      if (flourItem) {
+        await supabase.from("inventory")
+          .update({ stock: flourItem.stock - Number(flourUsed) })
+          .eq("id", flourItem.id);
+      }
+      
+      fetchInventory();
+      setShowProductionForm(false);
+      setProducedQty("");
+      setFlourUsed("");
+    }
+  };
+
   const resetForm = () => {
     setSelectedItemId("");
     setNewItemName("");
@@ -84,15 +122,24 @@ export default function InventoryPage() {
           <p className="text-gray-500 font-bold mt-1">متابعة المواد الخام وتنبيهات النقص</p>
         </div>
         {role !== "worker" && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-6 py-4 bg-amber-800 text-white rounded-[24px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 flex items-center gap-2"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>إضافة شحنة مخزون</span>
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setShowProductionForm(true)}
+              className="px-6 py-4 bg-emerald-700 text-white rounded-[24px] font-bold hover:bg-emerald-800 transition-all shadow-xl shadow-emerald-900/10 flex items-center gap-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              <span>تسجيل الإنتاج اليومي</span>
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-4 bg-amber-800 text-white rounded-[24px] font-bold hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/20 flex items-center gap-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>إضافة شحنة مخزون</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -132,15 +179,15 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
-                        <span className={`text-lg font-black ${isLow ? 'text-red-600' : 'text-gray-800'}`}>
-                          {item.stock} {item.unit}
+                        <span className={`text-lg font-black font-sans ${isLow ? 'text-red-600' : 'text-gray-800'}`}>
+                          {item.stock.toLocaleString('en-US')} {item.unit}
                         </span>
                         {isLow && <span className="text-[10px] font-bold text-red-400">تحتاج لطلب فوري!</span>}
                       </div>
                     </td>
-                    <td className="px-8 py-6 text-gray-400 font-bold">{item.threshold} {item.unit}</td>
-                    <td className="px-8 py-6 text-gray-400 text-sm font-medium">
-                      {new Date(item.last_updated).toLocaleDateString("ar-EG")}
+                    <td className="px-8 py-6 text-gray-400 font-bold font-sans">{item.threshold.toLocaleString('en-US')} {item.unit}</td>
+                    <td className="px-8 py-6 text-gray-400 text-sm font-medium font-sans">
+                      {new Date(item.last_updated).toLocaleDateString("en-US")}
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex justify-center">
@@ -160,9 +207,9 @@ export default function InventoryPage() {
            <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 bg-gradient-to-br from-amber-600 to-amber-800 text-white relative overflow-hidden group">
               <div className="relative z-10">
                 <h3 className="text-lg font-bold mb-2">إجمالي بنود المخزون</h3>
-                <h2 className="text-4xl font-black mb-4 tracking-tighter">{inventory.length} صنف</h2>
+                <h2 className="text-4xl font-black mb-4 tracking-tighter font-sans">{inventory.length.toLocaleString('en-US')} صنف</h2>
                 <p className="text-amber-100/80 text-xs font-medium leading-relaxed">
-                  {inventory.filter(i => i.stock <= i.threshold).length} أصناف تحت الحد الأدنى
+                  <span className="font-sans">{inventory.filter(i => i.stock <= i.threshold).length.toLocaleString('en-US')}</span> أصناف تحت الحد الأدنى
                 </p>
               </div>
               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
@@ -230,7 +277,7 @@ export default function InventoryPage() {
                     <select required value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}
                       className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black">
                       <option value="">اختر المادة...</option>
-                      {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (متوفر: {i.stock} {i.unit})</option>)}
+                      {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (متوفر: {i.stock.toLocaleString('en-US')} {i.unit})</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -252,6 +299,40 @@ export default function InventoryPage() {
                 <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 transition-all shadow-xl shadow-amber-900/30 transform active:scale-[0.98]">
                   {isNewItem ? 'حفظ الصنف الجديد' : 'تأكيد الإضافة للمخزون'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showProductionForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <h2 className="text-3xl font-black text-black mb-8 text-right">تسجيل الإنتاج اليومي</h2>
+            <form onSubmit={handleRecordProduction} className="space-y-6 text-right">
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">نوع الخبز</label>
+                <select required value={selectedBread} onChange={(e) => setSelectedBread(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black text-right">
+                   <option value="">اختر النوع...</option>
+                   {breadTypes.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية المنتجة (قطعة)</label>
+                  <input type="number" required value={producedQty} onChange={(e) => setProducedQty(e.target.value)}
+                    className="w-full px-5 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl font-bold text-emerald-900 text-center text-2xl" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الطحين المستخدم (كجم)</label>
+                  <input type="number" required value={flourUsed} onChange={(e) => setFlourUsed(e.target.value)}
+                    className="w-full px-5 py-4 bg-blue-50 border border-blue-100 rounded-2xl font-bold text-blue-900 text-center text-2xl" placeholder="0" />
+                </div>
+              </div>
+              <div className="pt-6 flex gap-4">
+                <button type="submit" className="flex-1 py-5 bg-emerald-700 text-white rounded-[24px] font-black text-xl hover:bg-emerald-800 shadow-xl shadow-emerald-900/20">تأكيد التسجيل</button>
+                <button type="button" onClick={() => setShowProductionForm(false)} className="px-8 py-5 bg-gray-100 text-gray-500 rounded-[24px] font-black text-xl hover:bg-gray-200">إلغاء</button>
               </div>
             </form>
           </div>

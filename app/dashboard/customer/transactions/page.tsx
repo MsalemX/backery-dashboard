@@ -72,18 +72,18 @@ export default function CustomerTransactions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="group hover:bg-amber-50/20 transition-colors">
-                  <td className="px-8 py-6 text-gray-400 font-sans font-bold">#{tx.id}</td>
-                  <td className="px-8 py-6 text-gray-500 font-sans">{tx.date}</td>
-                  <td className="px-8 py-6 font-bold text-gray-800">
+               {transactions.map((tx) => (
+                <tr key={tx.id} className="group hover:bg-amber-50/20 transition-colors font-sans">
+                  <td className="px-8 py-6 text-gray-400 font-bold">#{tx.id.toLocaleString('en-US')}</td>
+                  <td className="px-8 py-6 text-gray-500">{tx.date}</td>
+                  <td className="px-8 py-6 font-bold text-gray-800 font-regular">
                     {tx.type === 'credit' ? 'شراء منتجات' : 'تسديد دفعة مالية'}
                   </td>
-                  <td className="px-8 py-6 text-gray-500 font-medium">
-                    {tx.item ? `${tx.item} (ك: ${tx.quantity})` : "-"}
+                  <td className="px-8 py-6 text-gray-500 font-medium font-regular">
+                    {tx.item ? `${tx.item} (ك: ${tx.quantity?.toLocaleString('en-US')})` : "-"}
                   </td>
                   <td className="px-8 py-6">
-                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
+                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider font-regular ${
                       tx.type === 'credit' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                     }`}>
                       {tx.type === 'credit' ? 'مدين' : 'دائن'}
@@ -91,7 +91,7 @@ export default function CustomerTransactions() {
                   </td>
                   <td className="px-8 py-6">
                     <span className={`font-black text-lg ${tx.type === 'credit' ? 'text-gray-800' : 'text-emerald-700'}`}>
-                      {tx.amount.toFixed(2)} ₪
+                      {tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
                     </span>
                   </td>
                 </tr>

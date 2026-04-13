@@ -2,37 +2,37 @@ import PremiumChartCard from "@/components/PremiumChartCard";
 import { supabase } from "@/lib/supabase";
 
 export default async function AdminDashboard() {
-  const [customersRes, expensesRes, inventoryRes, posRecordsRes] = await Promise.all([
-    supabase.from("customers").select("id, name, debt, total_paid"),
-    supabase.from("expenses").select("amount"),
-    supabase.from("inventory").select("stock, threshold"),
-    supabase.from("pos_records").select("net"),
+  const [customersRes, transactionsRes, productionRes] = await Promise.all([
+    supabase.from("customers").select("*"),
+    supabase.from("customer_transactions").select("id"),
+    supabase.from("production_logs").select("flour_used, quantity_produced"),
   ]);
 
   const customers = customersRes.data || [];
-  const expenses = expensesRes.data || [];
-  const inventory = inventoryRes.data || [];
-  const posRecords = posRecordsRes.data || [];
+  const transactions = transactionsRes.data || [];
+  const production = productionRes.data || [];
 
   const totalCustomers = customers.length;
-  const totalDebt = customers.reduce((a, c) => a + c.debt, 0);
-  const totalPaid = customers.reduce((a, c) => a + c.total_paid, 0);
-  const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
-  const lowStockCount = inventory.filter(i => i.stock <= i.threshold).length;
-  const totalDistributed = posRecords.reduce((a, r) => a + r.net, 0);
-  const indebtedCount = customers.filter(c => c.debt > 0).length;
-  const debtFreeCount = customers.filter(c => c.debt <= 0).length;
+  const totalOrders = transactions.length;
+  const totalFlourUsed = production.reduce((a, p) => a + (p.flour_used || 0), 0);
+  const totalBreadProduced = production.reduce((a, p) => a + (p.quantity_produced || 0), 0);
+  
+  const totalDebtMoneyOn = customers.reduce((a, c) => a + (c.debt || 0), 0);
+  const totalCreditMoneyFor = customers.reduce((a, c) => a + (c.financial_credit || 0), 0);
+  
+  const totalFlourDebtOn = customers.reduce((a, c) => a + (c.flour_debt || 0), 0);
+  const totalFlourCreditFor = customers.reduce((a, c) => a + (c.flour_credit || 0), 0);
 
-  // Real-time grouping for trend estimation (mocking arrays for now based on actual totals)
+  // Chart data mocks
   const chartData = {
-    customers: [totalCustomers - 5, totalCustomers - 3, totalCustomers - 2, totalCustomers],
-    expenses: [totalExpenses * 0.8, totalExpenses * 0.9, totalExpenses],
-    debt: [totalDebt * 0.7, totalDebt * 1.1, totalDebt],
-    paid: [totalPaid * 0.6, totalPaid * 0.8, totalPaid],
-    bread: [totalDistributed * 0.5, totalDistributed * 1.2, totalDistributed],
-    lowStock: [lowStockCount + 2, lowStockCount + 1, lowStockCount],
-    indebted: [indebtedCount - 1, indebtedCount + 1, indebtedCount],
-    debtFree: [debtFreeCount - 2, debtFreeCount + 2, debtFreeCount],
+    customers: [totalCustomers - 2, totalCustomers],
+    orders: [totalOrders - 10, totalOrders],
+    flour: [totalFlourUsed * 0.9, totalFlourUsed],
+    bread: [totalBreadProduced * 0.9, totalBreadProduced],
+    debtMoney: [totalDebtMoneyOn * 1.1, totalDebtMoneyOn],
+    creditMoney: [totalCreditMoneyFor * 0.8, totalCreditMoneyFor],
+    flourDebt: [totalFlourDebtOn * 1.05, totalFlourDebtOn],
+    flourCredit: [totalFlourCreditFor * 0.95, totalFlourCreditFor],
   };
 
   return (
@@ -51,81 +51,75 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <PremiumChartCard
           title="إجمالي العملاء"
-          value={totalCustomers.toLocaleString("en-US")}
-          subText="عدد العملاء المسجلين"
+          value={totalCustomers.toLocaleString('en-US')}
+          subText="إجمالي الزبائن المسجلين"
           data={chartData.customers}
-          color="emerald"
-          type="sparkline"
+          color="blue"
           icon={<UsersIcon />}
         />
         <PremiumChartCard
-          title="إجمالي الموزع (صافي)"
-          value={totalDistributed.toLocaleString("en-US")}
-          subText="قطعة خبز موزعة"
-          data={chartData.bread}
-          color="blue"
-          type="sparkline"
+          title="إجمالي الطلبات"
+          value={totalOrders.toLocaleString('en-US')}
+          subText="إجمالي حركات البيع والتحصيل"
+          data={chartData.orders}
+          color="amber"
           icon={<CartIcon />}
         />
         <PremiumChartCard
-          title="أصناف ناقصة"
-          value={lowStockCount.toString()}
-          unit="صنف"
-          subText="تحت الحد الأدنى في المخزون"
-          data={chartData.lowStock}
-          color="amber"
-          type="sparkline"
+          title="الطحين المستخدم"
+          value={totalFlourUsed.toLocaleString('en-US')}
+          unit="كجم"
+          subText="إجمالي سحب الإنتاج"
+          data={chartData.flour}
+          color="emerald"
           icon={<ScaleIcon />}
         />
         <PremiumChartCard
-          title="إجمالي المسدّد"
-          value={totalPaid.toFixed(0)}
-          unit="₪"
-          subText="مدفوعات العملاء"
-          data={chartData.paid}
+          title="الخبز المنتج"
+          value={totalBreadProduced.toLocaleString('en-US')}
+          unit="قطعة"
+          subText="إجمالي ما تم خبزه"
+          data={chartData.bread}
           color="teal"
-          type="sparkline"
           icon={<BreadIcon />}
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <PremiumChartCard
-          title="إجمالي الدين على الزبائن"
-          value={totalDebt.toFixed(0)}
+          title="إجمالي الدين (عليهم)"
+          value={totalDebtMoneyOn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           unit="₪"
-          subText="أرصدة مالية قيد التحصيل"
-          data={chartData.debt}
+          subText="الديون المالية المستحقة"
+          data={chartData.debtMoney}
           color="rose"
-          type="sparkline"
           icon={<AlertIcon />}
         />
         <PremiumChartCard
-          title="إجمالي المصروفات"
-          value={totalExpenses.toLocaleString("en-US")}
+          title="إجمالي الرصيد (لهم)"
+          value={totalCreditMoneyFor.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           unit="₪"
-          subText="إجمالي تكاليف التشغيل"
-          data={chartData.expenses}
-          color="rose"
-          type="sparkline"
+          subText="أرصدة الزبائن المقدمة"
+          data={chartData.creditMoney}
+          color="emerald"
           icon={<ReceiptIcon />}
         />
         <PremiumChartCard
-          title="عملاء مدينون"
-          value={indebtedCount.toString()}
-          subText="عميل لديه رصيد مدين"
-          data={chartData.indebted}
+          title="دين طحين (عليهم)"
+          value={totalFlourDebtOn.toLocaleString('en-US')}
+          unit="كجم"
+          subText="كميات طحين مستحقة"
+          data={chartData.flourDebt}
           color="amber"
-          type="sparkline"
           icon={<ScaleIcon />}
         />
         <PremiumChartCard
-          title="عملاء بدون دين"
-          value={debtFreeCount.toString()}
-          subText="عميل رصيده صفر"
-          data={chartData.debtFree}
+          title="رصيد طحين (لهم)"
+          value={totalFlourCreditFor.toLocaleString('en-US')}
+          unit="كجم"
+          subText="كميات طحين مودعة"
+          data={chartData.flourCredit}
           color="blue"
-          type="sparkline"
           icon={<ListIcon />}
         />
       </div>
