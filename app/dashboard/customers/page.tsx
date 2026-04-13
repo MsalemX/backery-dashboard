@@ -83,7 +83,14 @@ export default function CustomersPage() {
     });
 
     if (!txErr) {
-      await supabase.from("customers").update({ debt: customer.debt + totalCost }).eq("id", customer.id);
+      const credit = customer.financial_credit || 0;
+      const appliedFromCredit = Math.min(totalCost, credit);
+      const remainingCost = totalCost - appliedFromCredit;
+
+      await supabase.from("customers").update({ 
+        debt: (customer.debt ?? 0) + remainingCost,
+        financial_credit: credit - appliedFromCredit
+      }).eq("id", customer.id);
       fetchData();
     }
     setShowCreditForm(false);
@@ -107,13 +114,14 @@ export default function CustomersPage() {
     });
 
     if (!txErr) {
-      const newDebt = Math.max(0, customer.debt - paidAmount);
-      const extra = Math.max(0, paidAmount - customer.debt);
+      const currentDebt = customer.debt || 0;
+      const appliedToDebt = Math.min(paidAmount, currentDebt);
+      const extra = paidAmount - appliedToDebt;
       
       await supabase.from("customers").update({
-        debt: newDebt,
+        debt: currentDebt - appliedToDebt,
         financial_credit: (customer.financial_credit || 0) + extra,
-        total_paid: customer.total_paid + paidAmount,
+        total_paid: (customer.total_paid ?? 0) + paidAmount,
       }).eq("id", customer.id);
       fetchData();
     }
@@ -320,9 +328,23 @@ export default function CustomersPage() {
                   <td className="px-8 py-6 text-gray-400 font-sans">{c.phone}</td>
                   <td className="px-8 py-6 font-bold text-gray-500 font-sans">{(c.total_paid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
-                    <span className={`font-black text-lg font-sans ${(c.debt ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {(c.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                    </span>
+                    {(c.financial_credit ?? 0) > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-emerald-600 font-black text-lg font-sans">
+                          {(c.financial_credit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase">باقي له (دائن)</span>
+                      </div>
+                    ) : (c.debt ?? 0) > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-rose-600 font-black text-lg font-sans">
+                          {(c.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                        </span>
+                        <span className="text-[10px] font-bold text-rose-500 uppercase">باقي عليه (مدين)</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 font-bold">خالص</span>
+                    )}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center gap-2">
@@ -554,28 +576,40 @@ export default function CustomersPage() {
 
             <div className="mt-8 pt-8 border-t border-gray-100 flex justify-between items-center" dir="rtl">
                <div className="flex flex-col items-end">
-                  <span className="text-xl font-black text-rose-600 font-sans tracking-tighter">
-                    {(customers.find(c => c.id === Number(selectedCustomerId))?.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                  </span>
-                  <span className="text-[10px] font-bold text-gray-400">الدين المالي</span>
-                  <div className="flex gap-4 mt-2 border-t border-gray-50 pt-2">
-                     <div className="text-center">
-                        <p className="text-[11px] font-black text-blue-600 font-sans">
+                  {((customers.find(c => c.id === Number(selectedCustomerId))?.financial_credit ?? 0) > 0) ? (
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-emerald-600 font-sans tracking-tighter">
+                        {(customers.find(c => c.id === Number(selectedCustomerId))?.financial_credit ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                      </span>
+                      <p className="text-[10px] font-black text-emerald-500">الرصيد النهائي: باقي لـه (دائن)</p>
+                    </div>
+                  ) : (
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-rose-600 font-sans tracking-tighter">
+                        {(customers.find(c => c.id === Number(selectedCustomerId))?.debt ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                      </span>
+                      <p className="text-[10px] font-black text-rose-500">الرصيد النهائي: باقي عليه (مدين)</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-4 mt-4 border-t border-gray-50 pt-4">
+                     <div className="text-center px-4">
+                        <p className="text-[12px] font-black text-blue-600 font-sans">
                           {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_credit ?? 0).toLocaleString('en-US')} كجم
                         </p>
-                       <p className="text-[9px] font-bold text-gray-400">طحين له</p>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">طحين له</p>
                      </div>
-                     <div className="text-center">
-                        <p className="text-[11px] font-black text-amber-600 font-sans">
+                     <div className="text-center px-4 border-r border-gray-100">
+                        <p className="text-[12px] font-black text-amber-600 font-sans">
                           {(customers.find(c => c.id === Number(selectedCustomerId))?.flour_debt ?? 0).toLocaleString('en-US')} كجم
                         </p>
-                       <p className="text-[9px] font-bold text-gray-400">طحين عليه</p>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">طحين عليه</p>
                      </div>
                   </div>
                </div>
-               <button onClick={() => window.print()} className="px-8 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all flex items-center gap-2">
-                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2h6a2 2 0 002 2v4" /></svg>
-                 طباعة كشف الحساب
+               <button onClick={() => window.print()} className="px-8 py-5 bg-black text-white rounded-[24px] font-black text-lg hover:bg-gray-800 transition-all flex items-center gap-3 shadow-xl shadow-gray-900/10">
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2h6a2 2 0 002 2v4" /></svg>
+                 طباعة الكشف
                </button>
             </div>
           </div>
