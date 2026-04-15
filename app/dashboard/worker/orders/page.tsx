@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type Order = {
   id: number;
@@ -26,40 +26,35 @@ export default function WorkerOrders() {
 
   const fetchOrders = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("*, customers(name, debt)")
-      .order("created_at", { ascending: false });
-    setOrders(data || []);
-    setLoading(false);
+    try {
+      const data = await api.get('/orders');
+      setOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStatusUpdate = async (order: Order, newStatus: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ order_status: newStatus })
-      .eq("id", order.id);
+    try {
+      await api.put(`/orders/${order.id}`, { order_status: newStatus });
 
-    if (!error) {
        // If payment method is credit and order is marked as delivered, update customer debt
        if (newStatus === "delivered" && order.payment_method === "credit" && order.order_status !== "delivered") {
         const currentDebt = order.customers?.debt || 0;
-        await supabase
-          .from("customers")
-          .update({ debt: currentDebt + order.total_amount })
-          .eq("id", order.customer_id);
+        await api.put(`/customers/${order.customer_id}`, { debt: currentDebt + order.total_amount });
       }
       fetchOrders();
+    } catch (error) {
+      console.error('Error updating order status:', error);
     }
   };
 
   const handlePaymentUpdate = async (orderId: number, newStatus: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ payment_status: newStatus })
-      .eq("id", orderId);
+    await api.put(`/orders/${orderId}`, { payment_status: newStatus });
 
-    if (!error) {
+    if (true) {
       fetchOrders();
     }
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 export default function CustomerTransactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -13,40 +13,37 @@ export default function CustomerTransactions() {
 
   const fetchTransactions = async () => {
     setLoading(true);
-    
+
     // Get the name of the logged-in user from localStorage
     const savedName = localStorage.getItem("userName");
-    
+
     if (!savedName) {
       setLoading(false);
       return;
     }
 
     // 1. Fetch customer details
-    const { data: customerData, error: customerError } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("name", savedName)
-      .single();
+    try {
+      const customers = await api.get('/customers');
+      const customerData = (customers || []).find((c: any) => {
+        const name = String(c.name || c.full_name || "");
+        return name.trim().toLowerCase() === savedName.trim().toLowerCase();
+      });
 
-    if (customerError || !customerData) {
-      console.error("Error fetching customer:", customerError);
+      if (!customerData) {
+        console.error("Customer not found");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fetch transaction history
+      const txData = await api.get(`/customer-transactions?customer_id=${customerData.id}`);
+      setTransactions(txData || []);
+    } catch (error) {
+      console.error("Error fetching customer data:", error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // 2. Fetch transaction history
-    const { data: txData, error: txError } = await supabase
-      .from("customer_transactions")
-      .select("*")
-      .eq("customer_id", customerData.id)
-      .order("date", { ascending: false });
-
-    if (!txError && txData) {
-      setTransactions(txData);
-    }
-    
-    setLoading(false);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري تحميل السجل...</div>;
@@ -72,7 +69,7 @@ export default function CustomerTransactions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-               {transactions.map((tx) => (
+              {transactions.map((tx) => (
                 <tr key={tx.id} className="group hover:bg-amber-50/20 transition-colors font-sans">
                   <td className="px-8 py-6 text-gray-400 font-bold">#{tx.id.toLocaleString('en-US')}</td>
                   <td className="px-8 py-6 text-gray-500">{tx.date}</td>
@@ -83,9 +80,8 @@ export default function CustomerTransactions() {
                     {tx.item ? `${tx.item} (ك: ${tx.quantity?.toLocaleString('en-US')})` : "-"}
                   </td>
                   <td className="px-8 py-6">
-                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider font-regular ${
-                      tx.type === 'credit' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                    }`}>
+                    <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider font-regular ${tx.type === 'credit' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                      }`}>
                       {tx.type === 'credit' ? 'مدين' : 'دائن'}
                     </span>
                   </td>

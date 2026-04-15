@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import PremiumChartCard from "@/components/PremiumChartCard";
 
 type Customer = { id: number; name: string; phone: string; debt: number; total_paid: number; status: string };
@@ -17,42 +17,39 @@ export default function CustomerDashboard() {
 
   const fetchCustomerData = async () => {
     setLoading(true);
-    
+
     // Get the name of the logged-in user from localStorage
     const savedName = localStorage.getItem("userName");
-    
+
     if (!savedName) {
       setLoading(false);
       return;
     }
 
     // 1. Fetch customer details
-    const { data: customerData, error: customerError } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("name", savedName)
-      .single();
+    try {
+      const customers = await api.get('/customers');
+      const customerData = (customers || []).find((c: any) => {
+        const name = String(c.name || c.full_name || "");
+        return name.trim().toLowerCase() === savedName.trim().toLowerCase();
+      });
 
-    if (customerError || !customerData) {
-      console.error("Error fetching customer:", customerError);
+      if (!customerData) {
+        console.error("Customer not found");
+        setLoading(false);
+        return;
+      }
+
+      setCustomer(customerData);
+
+      // 2. Fetch full transaction history for this customer
+      const txData = await api.get(`/customer-transactions?customer_id=${customerData.id}`);
+      setTransactions(txData || []);
+    } catch (error) {
+      console.error("Error fetching customer data:", error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setCustomer(customerData);
-
-    // 2. Fetch full transaction history for this customer
-    const { data: txData, error: txError } = await supabase
-      .from("customer_transactions")
-      .select("*")
-      .eq("customer_id", customerData.id)
-      .order("date", { ascending: false });
-
-    if (!txError && txData) {
-      setTransactions(txData);
-    }
-
-    setLoading(false);
   };
 
   const getDebtTrend = () => {

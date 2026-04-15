@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type BreadType = { id: number; name: string; price: number; description?: string };
 
@@ -20,9 +20,14 @@ export default function CustomerShop() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const { data } = await supabase.from("bread_types").select("*").order("name");
-    setProducts(data || []);
-    setLoading(false);
+    try {
+      const data = await api.get('/bread-types');
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCheckout = (product: BreadType) => {
@@ -40,16 +45,16 @@ export default function CustomerShop() {
       const savedName = localStorage.getItem("userName");
       if (!savedName) throw new Error("يرجى تسجيل الدخول أولاً");
 
-      const { data: customer, error: customerErr } = await supabase
-        .from("customers")
-        .select("*")
-        .eq("name", savedName)
-        .single();
+      const customers = await api.get('/customers');
+      const customer = (customers || []).find((c: any) => {
+        const name = String(c.name || c.full_name || "");
+        return name.trim().toLowerCase() === savedName.trim().toLowerCase();
+      });
 
-      if (customerErr || !customer) throw new Error("لم يتم العثور على بيانات الزبون المرتبطة بحسابك");
+      if (!customer) throw new Error("لم يتم العثور على بيانات الزبون المرتبطة بحسابك");
 
-      // 2. Create Order in the 'orders' table
-      const { error: orderErr } = await supabase.from("orders").insert({
+      // 2. Create Order in 'orders' table
+      await api.post('/orders', {
         customer_id: customer.id,
         item_name: selectedProduct.name,
         quantity: 1,
@@ -57,10 +62,7 @@ export default function CustomerShop() {
         payment_method: paymentMethod,
         order_status: "pending",
         payment_status: "unpaid",
-        order_date: new Date().toISOString().split("T")[0],
       });
-
-      if (orderErr) throw orderErr;
 
       setMessage(`تم إرسال طلب ${selectedProduct.name} بنجاح! يرجى انتظار تأكيد الأدمن.`);
       setShowCheckout(false);
@@ -93,7 +95,7 @@ export default function CustomerShop() {
         {products.map((product) => (
           <div key={product.id} className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden hover:shadow-xl transition-all group p-6">
             <div className="relative h-48 mb-6 rounded-[32px] overflow-hidden bg-amber-50 flex items-center justify-center">
-               <span className="text-6xl group-hover:scale-110 transition-transform duration-500">🥖</span>
+              <span className="text-6xl group-hover:scale-110 transition-transform duration-500">🥖</span>
             </div>
             <div className="space-y-2 mb-6">
               <h3 className="text-xl font-bold text-gray-800">{product.name}</h3>
@@ -119,24 +121,22 @@ export default function CustomerShop() {
           <div className="bg-white rounded-[48px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <h2 className="text-3xl font-black text-black mb-4">تأكيد الطلب</h2>
             <p className="text-gray-500 mb-8 font-medium">أنت تطلب <span className="text-amber-800 font-bold">{selectedProduct.name}</span> بسعر <span className="font-bold">{selectedProduct.price} ₪</span></p>
-            
+
             <div className="space-y-4 mb-10">
               <label className="block text-sm font-black text-black mb-2">طريقة الدفع</label>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setPaymentMethod("cod")}
-                  className={`py-6 rounded-[24px] font-black border-2 transition-all ${
-                    paymentMethod === "cod" ? "bg-amber-50 border-amber-800 text-amber-900" : "bg-gray-50 border-transparent text-gray-400"
-                  }`}
+                  className={`py-6 rounded-[24px] font-black border-2 transition-all ${paymentMethod === "cod" ? "bg-amber-50 border-amber-800 text-amber-900" : "bg-gray-50 border-transparent text-gray-400"
+                    }`}
                 >
                   <div className="mb-1 text-2xl">💵</div>
                   دفع عند التسليم
                 </button>
                 <button
                   onClick={() => setPaymentMethod("credit")}
-                  className={`py-6 rounded-[24px] font-black border-2 transition-all ${
-                    paymentMethod === "credit" ? "bg-amber-50 border-amber-800 text-amber-900" : "bg-gray-50 border-transparent text-gray-400"
-                  }`}
+                  className={`py-6 rounded-[24px] font-black border-2 transition-all ${paymentMethod === "credit" ? "bg-amber-50 border-amber-800 text-amber-900" : "bg-gray-50 border-transparent text-gray-400"
+                    }`}
                 >
                   <div className="mb-1 text-2xl">📝</div>
                   شراء بالدين

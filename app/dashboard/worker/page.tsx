@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type Customer = { id: number; name: string };
 type BreadType = { id: number; name: string; price: number };
@@ -26,14 +26,20 @@ export default function WorkerDashboard() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [cusRes, breadRes, recRes] = await Promise.all([
-      supabase.from("customers").select("id, name").order("id"),
-      supabase.from("bread_types").select("*").order("id"),
-      supabase.from("pos_records").select("*").order("created_at", { ascending: false }).limit(20),
-    ]);
-    if (cusRes.data) setCustomers(cusRes.data);
-    if (breadRes.data) setBreadTypes(breadRes.data);
-    if (recRes.data) setRecords(recRes.data);
+    try {
+      const [customers, breadTypes, records] = await Promise.all([
+        api.get('/customers'),
+        api.get('/bread-types'),
+        api.get('/pos-records?limit=20'),
+      ]);
+      setCustomers(customers || []);
+      setBreadTypes(breadTypes || []);
+      setRecords(records || []);
+    } catch (error) {
+      console.error('Error fetching worker data:', error);
+    } finally {
+      setLoading(false);
+    }
     setLoading(false);
   };
 
@@ -49,18 +55,21 @@ export default function WorkerDashboard() {
     const taken = modalType === "give" ? qNum : 0;
     const returned = modalType === "take" ? qNum : 0;
 
-    const { error } = await supabase.from("pos_records").insert({
-      pos_name: customer.name,
-      item: item.name,
-      taken,
-      returned,
-      date: new Date().toISOString().split("T")[0],
-    });
+    try {
+      await api.post('/pos-records', {
+        pos_name: customer.name,
+        item: item.name,
+        taken,
+        returned,
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!error) {
       fetchData();
       setShowModal(false);
       resetForm();
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      alert("خطأ في تسجيل العملية: " + error);
     }
   };
 

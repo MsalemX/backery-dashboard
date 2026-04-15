@@ -1,39 +1,36 @@
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 export default async function AccountantDashboard() {
-  const [expensesRes, customersRes, posRecordsRes] = await Promise.all([
-    supabase.from("expenses").select("id, category, amount, description, date").order("date", { ascending: false }).limit(10),
-    supabase.from("customers").select("debt, total_paid"),
-    supabase.from("pos_records").select("net"),
-  ]);
+  try {
+    const [expenses, customers, posRecords] = await Promise.all([
+      api.get('/expenses?limit=10&sort_by=date&order=desc'),
+      api.get('/customers'),
+      api.get('/pos-records'),
+    ]);
 
-  const expenses = expensesRes.data || [];
-  const customers = customersRes.data || [];
-  const posRecords = posRecordsRes.data || [];
+  const totalExpenses = expenses.reduce((a: number, e: any) => a + e.amount, 0);
+    const totalPaid = customers.reduce((a: number, c: any) => a + c.total_paid, 0);
+    const totalDebt = customers.reduce((a: number, c: any) => a + c.debt, 0);
+    const totalNet = posRecords.reduce((a: number, r: any) => a + r.net, 0);
+    const netProfit = totalPaid - totalExpenses;
 
-  const totalExpenses = expenses.reduce((a, e) => a + e.amount, 0);
-  const totalPaid = customers.reduce((a, c) => a + c.total_paid, 0);
-  const totalDebt = customers.reduce((a, c) => a + c.debt, 0);
-  const totalNet = posRecords.reduce((a, r) => a + r.net, 0);
-  const netProfit = totalPaid - totalExpenses;
-
-  const expenseByCategory: Record<string, number> = {};
-  expenses.forEach(e => {
-    expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount;
-  });
+    const expenseByCategory: Record<string, number> = {};
+    expenses.forEach((e: any) => {
+      expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount;
+    });
   const topCategories = Object.entries(expenseByCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-  const maxAmount = topCategories[0]?.[1] || 1;
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    const maxAmount = topCategories[0]?.[1] || 1;
 
-  const financialStats = [
-    { label: "إجمالي المسدّد من العملاء", value: `${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "مجموع الدفعات المستلمة", color: "emerald" },
-    { label: "إجمالي المصروفات", value: `${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: `${expenses.length.toLocaleString('en-US')} عملية مصروف`, color: "rose" },
-    { label: "صافي الأرباح المحتسبة", value: `${netProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "دخل - مصروفات", color: netProfit >= 0 ? "emerald" : "rose" },
-    { label: "إجمالي الديون المستحقة", value: `${totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "أرصدة قيد التحصيل", color: "amber" },
-  ];
+    const financialStats = [
+      { label: "إجمالي المسدّد من العملاء", value: `${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "مجموع الدفعات المستلمة", color: "emerald" },
+      { label: "إجمالي المصروفات", value: `${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: `${expenses.length.toLocaleString('en-US')} عملية مصروف`, color: "rose" },
+      { label: "صافي الأرباح المحتسبة", value: `${netProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "دخل - مصروفات", color: netProfit >= 0 ? "emerald" : "rose" },
+      { label: "إجمالي الديون المستحقة", value: `${totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`, subText: "أرصدة قيد التحصيل", color: "amber" },
+    ];
 
-  return (
+    return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-10">
         <div>
@@ -72,7 +69,7 @@ export default async function AccountantDashboard() {
             <h3 className="text-xl font-bold text-gray-800">آخر المصروفات المسجلة</h3>
           </div>
           <div className="space-y-4">
-            {expenses.map((exp) => (
+            {expenses.map((exp: any) => (
               <div key={exp.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-100 text-rose-700">
@@ -118,5 +115,16 @@ export default async function AccountantDashboard() {
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (error) {
+    console.error('Error loading accountant dashboard:', error);
+    return (
+      <div className="p-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-black text-red-600">حدث خطأ في تحميل البيانات</h1>
+          <p className="text-gray-600 mt-2">يرجى المحاولة مرة أخرى لاحقاً</p>
+        </div>
+      </div>
+    );
+  }
 }

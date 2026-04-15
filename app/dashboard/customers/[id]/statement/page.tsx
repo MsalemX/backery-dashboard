@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import Link from "next/link";
 
 type Customer = { 
@@ -40,17 +40,19 @@ export default function CustomerStatementPage({ params }: { params: Promise<{ id
 
   const fetchData = async () => {
     setLoading(true);
-    const [cusRes, txRes] = await Promise.all([
-      supabase.from("customers").select("*").eq("id", id).single(),
-      supabase.from("customer_transactions")
-        .select("*")
-        .eq("customer_id", id)
-        .order("date", { ascending: false }),
-    ]);
+    try {
+      const [customer, transactions] = await Promise.all([
+        api.get(`/customers/${id}`),
+        api.get(`/customer-transactions?customer_id=${id}`),
+      ]);
 
-    if (cusRes.data) setCustomer(cusRes.data);
-    if (txRes.data) setTransactions(txRes.data);
-    setLoading(false);
+      setCustomer(customer);
+      setTransactions(transactions || []);
+    } catch (error) {
+      console.error('Error fetching customer statement:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {

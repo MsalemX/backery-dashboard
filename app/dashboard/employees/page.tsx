@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type Employee = { id: number; name: string; email: string; role: string; status: string };
 
@@ -20,47 +20,56 @@ export default function EmployeesPage() {
 
   const fetchEmployees = async () => {
     setLoading(true);
-    const { data } = await supabase.from("employees").select("*").order("id");
-    if (data) setEmployees(data);
-    setLoading(false);
+    try {
+      const data = await api.get('/employees');
+      setEmployees(data);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 1. Insert into employees table
-    const { error: empError } = await supabase.from("employees").insert({
-      name: newName,
-      email: newEmail,
-      role: newRole,
-      status: "نشط",
-    });
+    try {
+      // 1. Insert into employees table
+      await api.post('/employees', {
+        name: newName,
+        email: newEmail,
+        role: newRole,
+        status: "نشط",
+      });
 
-    if (!empError) {
       // 2. Insert into users table for login
-      const { error: userError } = await supabase.from("users").insert({
+      await api.post('/users', {
         full_name: newName,
         email: newEmail,
         password: newPassword,
-        role: newRole.toLowerCase(), // Store role in lowercase for the login system
+        role: newRole.toLowerCase(), // Store role in lowercase for login system
       });
-
-      if (userError) {
-        console.error("Error creating user login account:", userError);
-      }
 
       fetchEmployees();
       setShowForm(false);
       setNewName("");
       setNewEmail("");
+      setNewRole("Worker");
       setNewPassword("");
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      alert("خطأ في إضافة الموظف: " + error);
     }
   };
 
   const handleDelete = async (id: number) => {
     // Note: In a real system you should also delete the corresponding user record
-    await supabase.from("employees").delete().eq("id", id);
-    setEmployees(employees.filter(e => e.id !== id));
+    try {
+      await api.delete(`/employees/${id}`);
+      setEmployees(employees.filter(e => e.id !== id));
+    } catch (error) {
+      alert("خطأ في حذف الموظف: " + error);
+    }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-400 font-bold">جاري التحميل...</div>;

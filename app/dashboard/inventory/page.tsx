@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type InventoryItem = { id: number; name: string; stock: number; unit: string; threshold: number; last_updated: string };
 
@@ -32,13 +32,16 @@ export default function InventoryPage() {
 
   const fetchInventory = async () => {
     setLoading(true);
-    const [invRes, breadRes] = await Promise.all([
-      supabase.from("inventory").select("*").order("id"),
-      supabase.from("bread_types").select("id, name").order("id")
-    ]);
-    if (invRes.data) setInventory(invRes.data);
-    if (breadRes.data) setBreadTypes(breadRes.data);
-    setLoading(false);
+    try {
+      const data = await api.get('/inventory');
+      setInventory(data);
+      const breadData = await api.get('/bread-types');
+      setBreadTypes(breadData);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddStock = async (e: React.FormEvent) => {
@@ -46,18 +49,20 @@ export default function InventoryPage() {
     
     if (isNewItem) {
       // Create New Item
-      const { error } = await supabase.from("inventory").insert({
-        name: newItemName,
-        stock: Number(newQuantity),
-        unit: newItemUnit,
-        threshold: Number(newItemThreshold),
-        last_updated: new Date().toISOString()
-      });
-      
-      if (!error) {
+      try {
+        await api.post('/inventory', {
+          name: newItemName,
+          stock: Number(newQuantity),
+          unit: newItemUnit,
+          threshold: Number(newItemThreshold),
+          last_updated: new Date().toISOString()
+        });
+        
         fetchInventory();
         setShowForm(false);
         resetForm();
+      } catch (error) {
+        alert("خطأ في إضافة الصنف: " + error);
       }
       return;
     }
@@ -67,14 +72,17 @@ export default function InventoryPage() {
     if (!item) return;
 
     const newStock = item.stock + Number(newQuantity);
-    const { error } = await supabase.from("inventory")
-      .update({ stock: newStock, last_updated: new Date().toISOString() })
-      .eq("id", item.id);
+    try {
+      await api.put(`/inventory/${item.id}`, {
+        stock: newStock, 
+        last_updated: new Date().toISOString() 
+      });
 
-    if (!error) {
       fetchInventory();
       setShowForm(false);
       resetForm();
+    } catch (error) {
+      alert("خطأ في تحديث الصنف: " + error);
     }
   };
 
@@ -82,26 +90,37 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!producedQty || !flourUsed) return;
 
-    const { error: logErr } = await supabase.from("production_logs").insert({
-      bread_type: selectedBread,
-      quantity_produced: Number(producedQty),
-      flour_used: Number(flourUsed),
-      date: new Date().toISOString().split("T")[0]
-    });
+    try {
+      await api.post('/production-logs', {
+        bread_type: selectedBread,
+        quantity_produced: Number(producedQty),
+        flour_used: Number(flourUsed),
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!logErr) {
-      // Deduct flour from inventory
-      const flourItem = inventory.find(i => i.name.includes("طحين") || i.name.includes("Flour"));
+      // Update inventory stock for the bread type
+      const breadItem = breadTypes.find(b => b.name === selectedBread);
+      if (breadItem) {
+        await api.put(`/bread-types/${breadItem.id}`, {
+          stock: breadItem.stock + Number(producedQty)
+        });
+      }
+      
+      // Update inventory stock for flour
+      const flourItem = inventory.find(i => i.name === "طحين");
       if (flourItem) {
-        await supabase.from("inventory")
-          .update({ stock: flourItem.stock - Number(flourUsed) })
-          .eq("id", flourItem.id);
+        await api.put(`/inventory/${flourItem.id}`, { 
+          stock: flourItem.stock - Number(flourUsed),
+          last_updated: new Date().toISOString()
+        });
       }
       
       fetchInventory();
       setShowProductionForm(false);
       setProducedQty("");
       setFlourUsed("");
+    } catch (error) {
+      alert("خطأ في تسجيل الإنتاج: " + error);
     }
   };
 

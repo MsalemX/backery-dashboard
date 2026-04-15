@@ -1,27 +1,29 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import Link from "next/link";
 
-type Customer = { 
-  id: number; 
-  name: string; 
-  phone: string; 
-  debt: number; 
-  total_paid: number; 
+type Customer = {
+  id: number;
+  name: string;
+
+  debt: number;
+  total_paid: number;
   status: string;
   flour_credit: number;
   flour_debt: number;
   financial_credit: number;
 };
 type BreadType = { id: number; name: string; price: number };
+type InventoryItem = { id: number; name: string; stock: number; unit: string; threshold: number; last_updated: string };
 type Transaction = { id: number; customer_id: number; type: string; item: string | null; quantity: number | null; amount: number; date: string };
 
 export default function CustomersPage() {
   const [role, setRole] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [breadTypes, setBreadTypes] = useState<BreadType[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,10 +33,10 @@ export default function CustomersPage() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showEditOptions, setShowEditOptions] = useState(false);
   const [showAddCustomerForm, setShowAddCustomerForm] = useState(false);
+  const [showInventorySaleForm, setShowInventorySaleForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
@@ -51,18 +53,25 @@ export default function CustomersPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [cusRes, breadRes, txRes] = await Promise.all([
-      supabase.from("customers").select("*").order("id"),
-      supabase.from("bread_types").select("*").order("id"),
-      supabase.from("customer_transactions").select("*").order("date", { ascending: false }),
-    ]);
-    if (cusRes.data) setCustomers(cusRes.data);
-    if (breadRes.data) setBreadTypes(breadRes.data);
-    if (txRes.data) setTransactions(txRes.data);
-    setLoading(false);
+    try {
+      const [customers, breadTypes, inventory, transactions] = await Promise.all([
+        api.get('/customers'),
+        api.get('/bread-types'),
+        api.get('/inventory'),
+        api.get('/customer-transactions'),
+      ]);
+      setCustomers(customers);
+      setBreadTypes(breadTypes);
+      setInventory(inventory);
+      setTransactions(transactions);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredCustomers = customers.filter(c => 
+  const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -74,31 +83,30 @@ export default function CustomersPage() {
 
     const totalCost = item.price * Number(quantity);
 
-    const { error: txErr } = await supabase.from("customer_transactions").insert({
-      customer_id: customer.id,
-      type: "credit",
-      item: item.name,
-      quantity: Number(quantity),
-      amount: totalCost,
-      date: new Date().toISOString().split("T")[0],
-    });
+    try {
+      await api.post('/customer-transactions', {
+        customer_id: customer.id,
+        type: "credit",
+        item: item.name,
+        quantity: Number(quantity),
+        amount: totalCost,
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!txErr) {
       const currentDebt = Number(customer.debt || 0);
       const currentCredit = Number(customer.financial_credit || 0);
-      
+
       const appliedFromCredit = Math.min(totalCost, currentCredit);
       const remainingCost = totalCost - appliedFromCredit;
 
-      const { error: updateErr } = await supabase.from("customers").update({ 
+      await api.put(`/customers/${customer.id}`, {
         debt: currentDebt + remainingCost,
         financial_credit: currentCredit - appliedFromCredit
-      }).eq("id", customer.id);
-      
-      if (updateErr) {
-        alert("خطأ في تحديث الرصيد: " + updateErr.message);
-      }
+      });
+
       fetchData();
+    } catch (error) {
+      alert("خطأ في تحديث الرصيد: " + error);
     }
     setShowCreditForm(false);
     resetForms();
@@ -111,32 +119,31 @@ export default function CustomersPage() {
 
     const paidAmount = Number(paymentAmount);
 
-    const { error: txErr } = await supabase.from("customer_transactions").insert({
-      customer_id: customer.id,
-      type: "payment",
-      item: null,
-      quantity: null,
-      amount: paidAmount,
-      date: new Date().toISOString().split("T")[0],
-    });
+    try {
+      await api.post('/customer-transactions', {
+        customer_id: customer.id,
+        type: "payment",
+        item: null,
+        quantity: null,
+        amount: paidAmount,
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!txErr) {
       const currentDebt = Number(customer.debt || 0);
       const currentCredit = Number(customer.financial_credit || 0);
-      
+
       const appliedToDebt = Math.min(paidAmount, currentDebt);
       const extra = paidAmount - appliedToDebt;
-      
-      const { error: updateErr } = await supabase.from("customers").update({
+
+      await api.put(`/customers/${customer.id}`, {
         debt: currentDebt - appliedToDebt,
         financial_credit: currentCredit + extra,
         total_paid: Number(customer.total_paid || 0) + paidAmount,
-      }).eq("id", customer.id);
+      });
 
-      if (updateErr) {
-        alert("خطأ في تحديث الرصيد: " + updateErr.message);
-      }
       fetchData();
+    } catch (error) {
+      alert("خطأ في تحديث الرصيد: " + error);
     }
     setShowPaymentForm(false);
     resetForms();
@@ -149,69 +156,129 @@ export default function CustomersPage() {
 
     const amount = Number(flourAmount);
     const updates: any = {};
-    
+
     if (flourType === "credit") {
       updates.flour_credit = (customer.flour_credit || 0) + amount;
     } else {
       updates.flour_debt = (customer.flour_debt || 0) + amount;
     }
 
-    const { error: txErr } = await supabase.from("customer_transactions").insert({
-      customer_id: customer.id,
-      type: flourType === "credit" ? "flour_deposit" : "flour_usage",
-      item: "طحين",
-      quantity: amount,
-      amount: 0,
-      date: new Date().toISOString().split("T")[0],
-    });
+    try {
+      await api.post('/customer-transactions', {
+        customer_id: customer.id,
+        type: flourType === "credit" ? "flour_deposit" : "flour_usage",
+        item: "طحين",
+        quantity: amount,
+        amount: 0,
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!txErr) {
-      await supabase.from("customers").update(updates).eq("id", customer.id);
+      await api.put(`/customers/${customer.id}`, updates);
       fetchData();
+    } catch (error) {
+      alert("خطأ في معاملة الطحين: " + error);
     }
     setShowFlourForm(false);
     setFlourAmount("");
   };
 
+  const handleInventorySale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const customer = customers.find(c => c.id === Number(selectedCustomerId));
+    const item = inventory.find(i => i.id === Number(selectedItemId));
+    if (!customer || !item) return;
+
+    const saleQuantity = Number(quantity);
+    const currentStock = item.stock;
+
+    if (saleQuantity > currentStock) {
+      alert("الكمية المطلوبة أكبر من المخزون المتاح!");
+      return;
+    }
+
+    // Calculate price - for now using a simple pricing, can be enhanced later
+    const pricePerUnit = 10; // Default price, can be made configurable
+    const totalCost = saleQuantity * pricePerUnit;
+
+    try {
+      // Record the transaction
+      await api.post('/customer-transactions', {
+        customer_id: customer.id,
+        type: "inventory_sale",
+        item: item.name,
+        quantity: saleQuantity,
+        amount: totalCost,
+        date: new Date().toISOString().split("T")[0],
+      });
+
+      // Update customer debt
+      const currentDebt = Number(customer.debt || 0);
+      const currentCredit = Number(customer.financial_credit || 0);
+
+      const appliedFromCredit = Math.min(totalCost, currentCredit);
+      const remainingCost = totalCost - appliedFromCredit;
+
+      await api.put(`/customers/${customer.id}`, {
+        debt: currentDebt + remainingCost,
+        financial_credit: currentCredit - appliedFromCredit
+      });
+
+      // Update inventory stock
+      await api.put(`/inventory/${item.id}`, {
+        stock: currentStock - saleQuantity
+      });
+
+      fetchData();
+    } catch (error) {
+      alert("خطأ في بيع المخزون: " + error);
+    }
+    setShowInventorySaleForm(false);
+    resetForms();
+  };
+
   const handleUpdateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCustomer) return;
-    const { error } = await supabase.from("customers")
-      .update({ name: editingCustomer.name, phone: editingCustomer.phone })
-      .eq("id", editingCustomer.id);
-    if (!error) {
+    try {
+      await api.put(`/customers/${editingCustomer.id}`, {
+        name: editingCustomer.name
+      });
       fetchData();
       setShowEditForm(false);
+    } catch (error) {
+      alert("خطأ في التحديث: " + error);
     }
   };
 
   const handleDeleteCustomer = async (id: number) => {
     if (confirm("هل أنت متأكد من حذف هذا الزبون نهائياً؟")) {
-      const { error } = await supabase.from("customers").delete().eq("id", id);
-      if (!error) fetchData();
+      try {
+        await api.delete(`/customers/${id}`);
+        fetchData();
+      } catch (error) {
+        alert("خطأ في الحذف: " + error);
+      }
     }
   };
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCustomerName.trim()) return;
-    const { error } = await supabase.from("customers").insert({
-      name: newCustomerName.trim(),
-      phone: newCustomerPhone.trim(),
-      debt: 0,
-      total_paid: 0,
-      financial_credit: 0,
-      flour_credit: 0,
-      flour_debt: 0,
-      status: "active",
-    });
-    if (!error) {
+    try {
+      await api.post('/customers', {
+        name: newCustomerName.trim(),
+        debt: 0,
+        total_paid: 0,
+        financial_credit: 0,
+        flour_credit: 0,
+        flour_debt: 0,
+        status: "active",
+      });
       fetchData();
       setShowAddCustomerForm(false);
       setNewCustomerName("");
-      setNewCustomerPhone("");
-    } else {
-      alert("خطأ في الإضافة: " + error.message);
+    } catch (error) {
+      alert("خطأ في الإضافة: " + error);
     }
   };
 
@@ -273,54 +340,59 @@ export default function CustomersPage() {
           >
             <span>بيع بالدين</span>
           </button>
+          <button
+            onClick={() => { setShowInventorySaleForm(true); }}
+            className="flex items-center gap-3 px-8 py-4 bg-blue-700 text-white rounded-[22px] font-bold hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/20 group transform active:scale-95"
+          >
+            <span>بيع مخزون</span>
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي الديون المستحقة</p>
-           <h2 className="text-3xl font-black text-rose-600 font-sans">
-             {customers.reduce((acc, c) => acc + (c.debt ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-           </h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي الديون المستحقة</p>
+          <h2 className="text-3xl font-black text-rose-600 font-sans">
+            {customers.reduce((acc, c) => acc + (c.debt ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+          </h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي المسدّد</p>
-           <h2 className="text-3xl font-black text-emerald-600 font-sans">
-             {customers.reduce((acc, c) => acc + (c.total_paid ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-           </h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي المسدّد</p>
+          <h2 className="text-3xl font-black text-emerald-600 font-sans">
+            {customers.reduce((acc, c) => acc + (c.total_paid ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+          </h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col justify-between">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">عدد الزبائن المدينين</p>
-           <h2 className="text-3xl font-black text-amber-800 font-sans">
-             {customers.filter(c => (c.debt ?? 0) > 0).length.toLocaleString('en-US')}
-           </h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">عدد الزبائن المدينين</p>
+          <h2 className="text-3xl font-black text-amber-800 font-sans">
+            {customers.filter(c => (c.debt ?? 0) > 0).length.toLocaleString('en-US')}
+          </h2>
         </div>
       </div>
 
       <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center bg-gray-50/30 gap-4">
-           <h3 className="text-xl font-bold text-gray-800">قائمة الحسابات</h3>
-           <div className="relative w-full md:w-72">
-             <span className="absolute inset-y-0 right-4 flex items-center text-gray-400">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-               </svg>
-             </span>
-             <input 
-               type="text" 
-               placeholder="ابحث عن زبون..." 
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-               className="w-full pr-12 pl-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-gray-800 text-right" 
-             />
-           </div>
+          <h3 className="text-xl font-bold text-gray-800">قائمة الحسابات</h3>
+          <div className="relative w-full md:w-72">
+            <span className="absolute inset-y-0 right-4 flex items-center text-gray-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              placeholder="ابحث عن زبون..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pr-12 pl-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-gray-800 text-right"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
             <thead>
               <tr className="bg-gray-50/50 text-gray-400 text-[11px] font-black uppercase tracking-widest">
                 <th className="px-8 py-6">الزبون</th>
-                <th className="px-8 py-6">الرقم</th>
                 <th className="px-8 py-6">إجمالي المسدد</th>
                 <th className="px-8 py-6">الرصيد المدين</th>
                 <th className="px-8 py-6 text-center">الإجراءات</th>
@@ -328,8 +400,8 @@ export default function CustomersPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filteredCustomers.map((c) => (
-                <tr 
-                  key={c.id} 
+                <tr
+                  key={c.id}
                   className="group hover:bg-amber-50/20 transition-colors cursor-pointer select-none active:bg-amber-100/50"
                   onMouseDown={() => startPress(c)}
                   onMouseUp={endPress}
@@ -338,7 +410,6 @@ export default function CustomersPage() {
                   onTouchEnd={endPress}
                 >
                   <td className="px-8 py-6 font-bold text-gray-800">{c.name}</td>
-                  <td className="px-8 py-6 text-gray-400 font-sans">{c.phone}</td>
                   <td className="px-8 py-6 font-bold text-gray-500 font-sans">{(c.total_paid ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
                     {(c.financial_credit ?? 0) > 0 ? (
@@ -363,41 +434,41 @@ export default function CustomersPage() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center gap-2">
-                       <Link
-                          target="_blank"
-                          href={`/dashboard/customers/${c.id}/statement`}
-                          className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase whitespace-nowrap inline-flex items-center"
-                          onClick={(e) => e.stopPropagation()}
-                       >
-                         كشف حساب
-                       </Link>
-                       <button
-                          className="text-white bg-amber-800 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-amber-900 transition-all uppercase"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowCreditForm(true); }}
-                       >
-                         + دين
-                       </button>
-                       <button
-                          className="text-white bg-emerald-700 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-emerald-800 transition-all uppercase"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowPaymentForm(true); }}
-                       >
-                         $ دفع
-                       </button>
-                       <div className="h-6 w-px bg-gray-200 mx-1"></div>
-                       <button
-                          className="text-gray-400 hover:text-amber-600 p-1.5 transition-all"
-                          onClick={(e) => { e.stopPropagation(); setEditingCustomer(c); setShowEditForm(true); }}
-                          title="تعديل"
-                       >
-                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                       </button>
-                       <button
-                          className="text-gray-400 hover:text-rose-600 p-1.5 transition-all"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(c.id); }}
-                          title="حذف"
-                       >
-                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                       </button>
+                      <Link
+                        target="_blank"
+                        href={`/dashboard/customers/${c.id}/statement`}
+                        className="text-white bg-blue-600 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-all uppercase whitespace-nowrap inline-flex items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        كشف حساب
+                      </Link>
+                      <button
+                        className="text-white bg-amber-800 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-amber-900 transition-all uppercase"
+                        onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowCreditForm(true); }}
+                      >
+                        + دين
+                      </button>
+                      <button
+                        className="text-white bg-emerald-700 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-emerald-800 transition-all uppercase"
+                        onClick={(e) => { e.stopPropagation(); setSelectedCustomerId(c.id.toString()); setShowPaymentForm(true); }}
+                      >
+                        $ دفع
+                      </button>
+                      <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                      <button
+                        className="text-gray-400 hover:text-amber-600 p-1.5 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setEditingCustomer(c); setShowEditForm(true); }}
+                        title="تعديل"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                      <button
+                        className="text-gray-400 hover:text-rose-600 p-1.5 transition-all"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCustomer(c.id); }}
+                        title="حذف"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -443,10 +514,10 @@ export default function CustomersPage() {
               </div>
               {selectedItemId && quantity && (
                 <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100 flex justify-between items-center">
-                   <p className="font-bold text-rose-900 italic">إجمالي القيمة المضافة للدين:</p>
-                   <p className="text-3xl font-black text-rose-700 uppercase font-sans">
-                      {((breadTypes.find(i => i.id === Number(selectedItemId))?.price || 0) * Number(quantity)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                    </p>
+                  <p className="font-bold text-rose-900 italic">إجمالي القيمة المضافة للدين:</p>
+                  <p className="text-3xl font-black text-rose-700 uppercase font-sans">
+                    {((breadTypes.find(i => i.id === Number(selectedItemId))?.price || 0) * Number(quantity)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
                 </div>
               )}
               <div className="flex gap-4 pt-4">
@@ -490,7 +561,7 @@ export default function CustomersPage() {
           <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-10 duration-300">
             <h3 className="text-2xl font-black text-gray-800 text-center mb-8">{editingCustomer.name}</h3>
             <div className="grid grid-cols-1 gap-4">
-              <button 
+              <button
                 onClick={() => { setShowEditOptions(false); window.open(`/dashboard/customers/${editingCustomer.id}/statement`, '_blank'); }}
                 className="w-full py-5 bg-blue-50 text-blue-700 rounded-2xl font-black text-lg hover:bg-blue-100 transition-all flex items-center justify-center gap-3"
               >
@@ -511,21 +582,21 @@ export default function CustomersPage() {
                   معاملة طحين
                 </button>
               </div>
-              <button 
-                 onClick={() => { setShowEditOptions(false); setShowEditForm(true); }}
-                 className="w-full py-5 bg-amber-50 text-amber-700 rounded-2xl font-black text-lg hover:bg-amber-100 transition-all flex items-center justify-center gap-3"
+              <button
+                onClick={() => { setShowEditOptions(false); setShowEditForm(true); }}
+                className="w-full py-5 bg-amber-50 text-amber-700 rounded-2xl font-black text-lg hover:bg-amber-100 transition-all flex items-center justify-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                 تعديل البيانات
               </button>
-              <button 
+              <button
                 onClick={() => { setShowEditOptions(false); handleDeleteCustomer(editingCustomer.id); }}
                 className="w-full py-5 bg-rose-50 text-rose-600 rounded-2xl font-black text-lg hover:bg-rose-100 transition-all flex items-center justify-center gap-3"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 حذف الزبون
               </button>
-              <button 
+              <button
                 onClick={() => setShowEditOptions(false)}
                 className="w-full py-4 mt-2 text-gray-400 font-bold hover:text-gray-600"
               >
@@ -543,12 +614,7 @@ export default function CustomersPage() {
             <form onSubmit={handleUpdateCustomer} className="space-y-6 text-right">
               <div>
                 <label className="block text-sm font-black text-black mb-2 mr-1">الاسم</label>
-                <input type="text" required value={editingCustomer.name} onChange={(e) => setEditingCustomer({...editingCustomer, name: e.target.value})}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black" />
-              </div>
-              <div>
-                <label className="block text-sm font-black text-black mb-2 mr-1">رقم الهاتف</label>
-                <input type="text" required value={editingCustomer.phone} onChange={(e) => setEditingCustomer({...editingCustomer, phone: e.target.value})}
+                <input type="text" required value={editingCustomer.name} onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black" />
               </div>
               <div className="flex gap-4 pt-4">
@@ -566,7 +632,7 @@ export default function CustomersPage() {
           <div className="bg-white rounded-[48px] w-full max-w-md p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-3xl font-black text-black">إضافة زبون جديد</h2>
-              <button onClick={() => { setShowAddCustomerForm(false); setNewCustomerName(""); setNewCustomerPhone(""); }} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+              <button onClick={() => { setShowAddCustomerForm(false); setNewCustomerName(""); }} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
                 <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -582,16 +648,6 @@ export default function CustomersPage() {
                   onChange={(e) => setNewCustomerName(e.target.value)}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right"
                   placeholder="مثلاً: أحمد محمد"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-black text-black mb-2 mr-1">رقم الهاتف</label>
-                <input
-                  type="text"
-                  value={newCustomerPhone}
-                  onChange={(e) => setNewCustomerPhone(e.target.value)}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-500/10 font-bold text-black text-right"
-                  placeholder="05xxxxxxxxx"
                 />
               </div>
               <div className="p-5 bg-amber-50 rounded-3xl border border-amber-100 text-right">
@@ -627,6 +683,64 @@ export default function CustomersPage() {
               <div className="flex gap-4 pt-4">
                 <button type="submit" className="flex-1 py-5 bg-black text-white rounded-[24px] font-black text-xl hover:bg-gray-800 shadow-2xl transform active:scale-95">تأكيد العملية</button>
                 <button type="button" onClick={() => setShowFlourForm(false)} className="px-8 py-5 bg-gray-100 text-gray-500 rounded-[24px] font-black text-xl hover:bg-gray-200 transition-all">إلغاء</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showInventorySaleForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[40px] w-full max-w-lg p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <h2 className="text-3xl font-black text-black mb-8">بيع صنف من المخزون</h2>
+            <form onSubmit={handleInventorySale} className="space-y-6">
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">اختر الزبون</label>
+                <select
+                  required value={selectedCustomerId}
+                  onChange={(e) => setSelectedCustomerId(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black"
+                >
+                  <option value="">اختر...</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الصنف</label>
+                  <select
+                    required value={selectedItemId}
+                    onChange={(e) => setSelectedItemId(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black"
+                  >
+                    <option value="">اختر الصنف...</option>
+                    {inventory.map(i => <option key={i.id} value={i.id}>{i.name} ({i.stock} {i.unit})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية</label>
+                  <input type="number" required value={quantity} onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black" placeholder="0" />
+                </div>
+              </div>
+              {selectedItemId && quantity && (
+                <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex justify-between items-center">
+                  <p className="font-bold text-blue-900 italic">إجمالي القيمة المضافة للدين:</p>
+                  <p className="text-3xl font-black text-blue-700 uppercase font-sans">
+                    {(10 * Number(quantity)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                </div>
+              )}
+              {selectedItemId && (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <p className="text-sm font-bold text-amber-800">
+                    المخزون المتاح: {inventory.find(i => i.id === Number(selectedItemId))?.stock || 0} {inventory.find(i => i.id === Number(selectedItemId))?.unit || ""}
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="flex-1 py-5 bg-blue-800 text-white rounded-[24px] font-black text-xl hover:bg-blue-900 shadow-2xl shadow-blue-900/30 transform active:scale-95">حفظ البيع</button>
+                <button type="button" onClick={() => { setShowInventorySaleForm(false); resetForms(); }} className="px-8 py-5 bg-gray-100 text-gray-500 rounded-[24px] font-black text-xl hover:bg-gray-200">إلغاء</button>
               </div>
             </form>
           </div>

@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\xampp\\\\htdocs\\\\Laravel Backend\\\\bakery-dashboard\\\\backery-dashboard\"; php -l routes/api\\.php ; php -l app/Http/Controllers/AuthController\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

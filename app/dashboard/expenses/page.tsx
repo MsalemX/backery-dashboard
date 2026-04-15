@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type Expense = { id: number; category: string; amount: number; description: string; date: string };
 
@@ -20,30 +20,42 @@ export default function ExpensesPage() {
 
   const fetchExpenses = async () => {
     setLoading(true);
-    const { data } = await supabase.from("expenses").select("*").order("date", { ascending: false });
-    if (data) setExpenses(data);
-    setLoading(false);
+    try {
+      const data = await api.get('/expenses');
+      setExpenses(data);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExpense.category || !newExpense.amount) return;
-    const { error } = await supabase.from("expenses").insert({
-      category: newExpense.category,
-      amount: Number(newExpense.amount),
-      description: newExpense.description,
-      date: new Date().toISOString().split("T")[0],
-    });
-    if (!error) {
-      fetchExpenses();
-      setShowModal(false);
+    try {
+      await api.post('/expenses', {
+        category: newExpense.category,
+        amount: Number(newExpense.amount),
+        description: newExpense.description,
+        date: new Date().toISOString().split("T")[0],
+      });
+
+      setExpenses([...expenses, { id: Date.now(), date: new Date().toISOString().split("T")[0], ...newExpense, amount: Number(newExpense.amount) }]);
       setNewExpense({ category: "", amount: "", description: "" });
+      setShowModal(false);
+    } catch (error) {
+      alert("خطأ في إضافة المصروف: " + error);
     }
   };
 
   const handleDelete = async (id: number) => {
-    await supabase.from("expenses").delete().eq("id", id);
-    setExpenses(expenses.filter(e => e.id !== id));
+    try {
+      await api.delete(`/expenses/${id}`);
+      setExpenses(expenses.filter(e => e.id !== id));
+    } catch (error) {
+      alert("خطأ في حذف المصروف: " + error);
+    }
   };
 
   const totalThisMonth = expenses.reduce((acc, curr) => acc + curr.amount, 0);

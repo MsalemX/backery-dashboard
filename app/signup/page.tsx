@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
@@ -21,50 +21,33 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // 1. Check if user already exists in users table
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email.trim())
-        .single();
+      const response = await api.post('/register', {
+        full_name: fullName,
+        email: email.trim(),
+        phone: phone,
+        password: password,
+        role: "customer"
+      });
 
-      if (existingUser) {
-        setError("هذا البريد الإلكتروني مسجل بالفعل.");
-        setLoading(false);
+      console.log("SIGNUP RESPONSE:", response);
+
+      const payload = response?.data ?? response;
+      const isSuccess = payload?.success === undefined ? true : payload.success;
+
+      if (!isSuccess) {
+        setError(payload?.message || payload?.error || "حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.");
         return;
       }
 
-      // 2. Insert into users table
-      const { error: userError } = await supabase.from("users").insert({
-        full_name: fullName,
-        email: email.trim(),
-        password: password,
-        role: "customer",
-      });
-
-      if (userError) throw userError;
-
-      // 3. Insert into customers table
-      const { error: customerError } = await supabase.from("customers").insert({
-        name: fullName,
-        phone: phone,
-        debt: 0,
-        total_paid: 0,
-        status: "نشط",
-      });
-
-      if (customerError) throw customerError;
-
-      // Save user info for future use (e.g., personalization)
-      localStorage.setItem("userName", fullName);
-      localStorage.setItem("userEmail", email.trim());
-      localStorage.setItem("userRole", "customer");
-
-      // Success! Auto login or redirect to login
       router.push("/login?signup=success");
     } catch (err: any) {
       console.error("Signup error:", err);
-      setError("حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.");
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "حدث خطأ أثناء إنشاء الحساب. يرجى المحاولة مرة أخرى.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

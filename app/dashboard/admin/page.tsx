@@ -1,41 +1,38 @@
 import PremiumChartCard from "@/components/PremiumChartCard";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 export default async function AdminDashboard() {
-  const [customersRes, transactionsRes, productionRes] = await Promise.all([
-    supabase.from("customers").select("*"),
-    supabase.from("customer_transactions").select("id"),
-    supabase.from("production_logs").select("flour_used, quantity_produced"),
-  ]);
+  try {
+    const [customers, transactions, production] = await Promise.all([
+      api.get('/customers'),
+      api.get('/customer-transactions'),
+      api.get('/production-logs'),
+    ]);
 
-  const customers = customersRes.data || [];
-  const transactions = transactionsRes.data || [];
-  const production = productionRes.data || [];
+    const totalCustomers = customers.length;
+    const totalOrders = transactions.length;
+    const totalFlourUsed = production.reduce((a: number, p: any) => a + (p.flour_used || 0), 0);
+    const totalBreadProduced = production.reduce((a: number, p: any) => a + (p.quantity_produced || 0), 0);
+    
+    const totalDebtMoneyOn = customers.reduce((a: number, c: any) => a + (c.debt || 0), 0);
+    const totalCreditMoneyFor = customers.reduce((a: number, c: any) => a + (c.financial_credit || 0), 0);
+    
+    const totalFlourDebtOn = customers.reduce((a: number, c: any) => a + (c.flour_debt || 0), 0);
+    const totalFlourCreditFor = customers.reduce((a: number, c: any) => a + (c.flour_credit || 0), 0);
 
-  const totalCustomers = customers.length;
-  const totalOrders = transactions.length;
-  const totalFlourUsed = production.reduce((a, p) => a + (p.flour_used || 0), 0);
-  const totalBreadProduced = production.reduce((a, p) => a + (p.quantity_produced || 0), 0);
-  
-  const totalDebtMoneyOn = customers.reduce((a, c) => a + (c.debt || 0), 0);
-  const totalCreditMoneyFor = customers.reduce((a, c) => a + (c.financial_credit || 0), 0);
-  
-  const totalFlourDebtOn = customers.reduce((a, c) => a + (c.flour_debt || 0), 0);
-  const totalFlourCreditFor = customers.reduce((a, c) => a + (c.flour_credit || 0), 0);
+    // Chart data mocks
+    const chartData = {
+      customers: [totalCustomers - 2, totalCustomers],
+      orders: [totalOrders - 10, totalOrders],
+      flour: [totalFlourUsed * 0.9, totalFlourUsed],
+      bread: [totalBreadProduced * 0.9, totalBreadProduced],
+      debtMoney: [totalDebtMoneyOn * 1.1, totalDebtMoneyOn],
+      creditMoney: [totalCreditMoneyFor * 0.8, totalCreditMoneyFor],
+      flourDebt: [totalFlourDebtOn * 1.05, totalFlourDebtOn],
+      flourCredit: [totalFlourCreditFor * 0.95, totalFlourCreditFor],
+    };
 
-  // Chart data mocks
-  const chartData = {
-    customers: [totalCustomers - 2, totalCustomers],
-    orders: [totalOrders - 10, totalOrders],
-    flour: [totalFlourUsed * 0.9, totalFlourUsed],
-    bread: [totalBreadProduced * 0.9, totalBreadProduced],
-    debtMoney: [totalDebtMoneyOn * 1.1, totalDebtMoneyOn],
-    creditMoney: [totalCreditMoneyFor * 0.8, totalCreditMoneyFor],
-    flourDebt: [totalFlourDebtOn * 1.05, totalFlourDebtOn],
-    flourCredit: [totalFlourCreditFor * 0.95, totalFlourCreditFor],
-  };
-
-  return (
+    return (
     <div className="p-8 pb-20 bg-[#f9fafb] min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
@@ -129,7 +126,18 @@ export default async function AdminDashboard() {
          <p className="text-gray-300 font-bold text-sm tracking-widest uppercase">مخبز السعادة البلدي</p>
       </div>
     </div>
-  );
+    );
+  } catch (error) {
+    console.error('Error loading admin dashboard:', error);
+    return (
+      <div className="p-8 bg-[#f9fafb] min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-black text-red-600">حدث خطأ في تحميل البيانات</h1>
+          <p className="text-gray-600 mt-2">يرجى المحاولة مرة أخرى لاحقاً</p>
+        </div>
+      </div>
+    );
+  }
 }
 
 function UsersIcon() {

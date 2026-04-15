@@ -3,16 +3,18 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 type POS = { id: number; name: string; location: string; contact: string; status: string; balance: number };
 type BreadType = { id: number; name: string; price: number };
+type InventoryItem = { id: number; name: string; stock: number; unit: string; threshold: number; last_updated: string };
 type POSRecord = { id: number; pos_id: number; pos_name: string; item: string; taken: number; returned: number; net: number; amount: number; date: string };
 type POSTransaction = { id: number; pos_id: number; type: 'supply' | 'deposit'; item: string; quantity: number | null; amount: number; date: string; balance_after?: number };
 
 export default function POSPage() {
   const [posList, setPosList] = useState<POS[]>([]);
   const [breadTypes, setBreadTypes] = useState<BreadType[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [records, setRecords] = useState<POSRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,16 +22,16 @@ export default function POSPage() {
   const [showPOSForm, setShowPOSForm] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [showInventorySaleForm, setShowInventorySaleForm] = useState(false);
   const [posTransactions, setPosTransactions] = useState<POSTransaction[]>([]);
   const [selectedPOS, setSelectedPOS] = useState("");
   const [selectedItem, setSelectedItem] = useState("");
   const [quantityTaken, setQuantityTaken] = useState("");
   const [quantityReturned, setQuantityReturned] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
-  
+
   // New POS form state
   const [newPOSName, setNewPOSName] = useState("");
-  const [newPOSPhone, setNewPOSPhone] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -37,31 +39,38 @@ export default function POSPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [posRes, breadRes, recRes] = await Promise.all([
-      supabase.from("pos").select("*").order("id"),
-      supabase.from("bread_types").select("*").order("id"),
-      supabase.from("pos_records").select("*").order("created_at", { ascending: false }),
-    ]);
-    if (posRes.data) setPosList(posRes.data);
-    if (breadRes.data) setBreadTypes(breadRes.data);
-    if (recRes.data) setRecords(recRes.data);
-    setLoading(false);
+    try {
+      const [posList, breadTypes, inventory, records] = await Promise.all([
+        api.get('/pos'),
+        api.get('/bread-types'),
+        api.get('/inventory'),
+        api.get('/pos-records'),
+      ]);
+      setPosList(posList || []);
+      setBreadTypes(breadTypes || []);
+      setInventory(inventory || []);
+      setRecords(records || []);
+    } catch (error) {
+      console.error('Error fetching POS data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreatePOS = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("pos").insert({
-      name: newPOSName,
-      contact: newPOSPhone,
-      status: "نشط",
-      location: "موقع غير محدد"
-    });
+    try {
+      await api.post('/pos', {
+        name: newPOSName,
+        status: "نشط",
+        location: "موقع غير محدد"
+      });
 
-    if (!error) {
-      fetchData();
+      setPosList([...posList, { id: Date.now(), name: newPOSName, location: "موقع غير محدد", contact: "", status: "نشط", balance: 0 }]);
       setShowPOSForm(false);
       setNewPOSName("");
-      setNewPOSPhone("");
+    } catch (error) {
+      alert("خطأ في إضافة نقطة البيع: " + error);
     }
   };
 
@@ -76,35 +85,37 @@ export default function POSPage() {
     const netNum = takenNum - returnedNum;
     const totalCost = netNum * item.price;
 
-    const { error } = await supabase.from("pos_records").insert({
-      pos_id: pos.id,
-      pos_name: pos.name,
-      item: item.name,
-      taken: takenNum,
-      returned: returnedNum,
-      net: netNum,
-      amount: totalCost,
-      date: new Date().toISOString().split("T")[0],
-    });
+    try {
+      await api.post('/pos-records', {
+        pos_id: pos.id,
+        pos_name: pos.name,
+        item: item.name,
+        taken: takenNum,
+        returned: returnedNum,
+        net: takenNum - returnedNum,
+        amount: totalCost,
+        date: new Date().toISOString().split("T")[0],
+      });
 
-    if (!error) {
-      // Deduct from POS balance
       const newBalance = (pos.balance ?? 0) - totalCost;
-      await supabase.from("pos").update({ balance: newBalance }).eq("id", pos.id);
-      
-      // Log transaction
-      await supabase.from("pos_transactions").insert({
+      await api.put(`/pos/${pos.id}`, { balance: newBalance });
+
+      await api.post('/pos-transactions', {
         pos_id: pos.id,
         type: 'supply',
         item: item.name,
         quantity: netNum,
         amount: totalCost,
-        date: new Date().toISOString().split("T")[0]
+        date: new Date().toISOString().split("T")[0],
+        balance_after: newBalance,
       });
 
+      setRecords([...records, { id: Date.now(), pos_id: pos.id, pos_name: pos.name, item: item.name, taken: takenNum, returned: returnedNum, net: takenNum - returnedNum, amount: totalCost, date: new Date().toISOString().split("T")[0] }]);
       fetchData();
       setShowSupplyForm(false);
       resetForm();
+    } catch (error) {
+      alert("خطأ في إضافة السجل: " + error);
     }
   };
 
@@ -114,39 +125,98 @@ export default function POSPage() {
     if (!pos || !depositAmount) return;
 
     const amount = parseFloat(depositAmount);
-    const newBalance = (pos.balance ?? 0) + amount;
-    const { error } = await supabase.from("pos").update({ balance: newBalance }).eq("id", pos.id);
+    const currentBalance = pos.balance ?? 0;
+    const newBalance = currentBalance + amount;
+    const depositLabel = currentBalance < 0 ? 'سداد دين المحفظة' : 'شحن رصيد';
 
-    if (!error) {
-      // Log transaction
-      await supabase.from("pos_transactions").insert({
+    await api.put(`/pos/${pos.id}`, { balance: newBalance });
+
+    try {
+      await api.post('/pos-transactions', {
         pos_id: pos.id,
         type: 'deposit',
-        item: 'شحن رصيد',
+        item: depositLabel,
         quantity: 0,
         amount: amount,
-        date: new Date().toISOString().split("T")[0]
+        date: new Date().toISOString().split("T")[0],
+        balance_after: newBalance,
       });
 
       fetchData();
       setShowDepositForm(false);
       setDepositAmount("");
       setSelectedPOS("");
+    } catch (error) {
+      alert("خطأ في شحن المحفظة: " + error);
     }
+  };
+
+  const handleInventorySale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pos = posList.find(p => p.id === Number(selectedPOS));
+    const item = inventory.find(i => i.id === Number(selectedItem));
+    if (!pos || !item) return;
+
+    const saleQuantity = Number(quantityTaken);
+    const currentStock = item.stock;
+
+    if (saleQuantity > currentStock) {
+      alert("الكمية المطلوبة أكبر من المخزون المتاح!");
+      return;
+    }
+
+    // Calculate price - for now using a simple pricing, can be enhanced later
+    const pricePerUnit = 10; // Default price, can be made configurable
+    const totalCost = saleQuantity * pricePerUnit;
+
+    try {
+      // Check if POS has enough balance
+      if ((pos.balance ?? 0) < totalCost) {
+        alert("رصيد نقطة البيع غير كافٍ لإتمام البيع!");
+        return;
+      }
+
+      // Record the transaction
+      await api.post('/pos-transactions', {
+        pos_id: pos.id,
+        type: 'inventory_sale',
+        item: item.name,
+        quantity: saleQuantity,
+        amount: totalCost,
+        date: new Date().toISOString().split("T")[0]
+      });
+
+      // Update POS balance
+      await api.put(`/pos/${pos.id}`, {
+        balance: (pos.balance ?? 0) - totalCost
+      });
+
+      // Update inventory stock
+      await api.put(`/inventory/${item.id}`, {
+        stock: currentStock - saleQuantity
+      });
+
+      fetchData();
+    } catch (error) {
+      alert("خطأ في بيع المخزون: " + error);
+    }
+    setShowInventorySaleForm(false);
+    resetForm();
   };
 
   const fetchPosHistory = async (posId: number) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("pos_transactions")
-      .select("*")
-      .eq("pos_id", posId)
-      .order("created_at", { ascending: false });
-    
-    if (data) setPosTransactions(data);
-    setSelectedPOS(posId.toString());
-    setShowStatement(true);
-    setLoading(false);
+    try {
+      const data = await api.get(`/pos-transactions?pos_id=${posId}`);
+
+      setPosTransactions(data || []);
+      setSelectedPOS(posId.toString());
+      setShowStatement(true);
+    } catch (error) {
+      console.error('Error fetching POS history:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -176,6 +246,12 @@ export default function POSPage() {
             <span>$ شحن المحفظة</span>
           </button>
           <button
+            onClick={() => setShowInventorySaleForm(true)}
+            className="flex items-center gap-2 px-6 py-4 bg-blue-700 text-white rounded-[22px] font-bold hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/10 transform active:scale-95"
+          >
+            <span>بيع مخزون</span>
+          </button>
+          <button
             onClick={() => setShowPOSForm(true)}
             className="flex items-center gap-2 px-6 py-4 bg-white text-amber-900 border-2 border-amber-100 rounded-[22px] font-bold hover:bg-amber-50 transition-all shadow-sm group"
           >
@@ -198,20 +274,20 @@ export default function POSPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي الموزع اليوم</p>
-           <h2 className="text-3xl font-black text-amber-800 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((a, r) => a + r.taken, 0).toLocaleString('en-US')} <span className="text-sm font-medium">قطعة</span></h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي الموزع اليوم</p>
+          <h2 className="text-3xl font-black text-amber-800 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((a, r) => a + r.taken, 0).toLocaleString('en-US')} <span className="text-sm font-medium">قطعة</span></h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي المرتجع اليوم</p>
-           <h2 className="text-3xl font-black text-rose-600 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((a, r) => a + r.returned, 0).toLocaleString('en-US')} <span className="text-sm font-medium">قطعة</span></h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي المرتجع اليوم</p>
+          <h2 className="text-3xl font-black text-rose-600 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((a, r) => a + r.returned, 0).toLocaleString('en-US')} <span className="text-sm font-medium">قطعة</span></h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي رصيد المحافظ</p>
-           <h2 className="text-3xl font-black text-emerald-600 font-sans">{posList.reduce((acc, p) => acc + (p.balance ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">إجمالي رصيد المحافظ</p>
+          <h2 className="text-3xl font-black text-emerald-600 font-sans">{posList.reduce((acc, p) => acc + (p.balance ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
         </div>
         <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
-           <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">تحصيل اليوم المتوقع</p>
-           <h2 className="text-3xl font-black text-amber-800 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((acc, r) => acc + (r.amount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
+          <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">تحصيل اليوم المتوقع</p>
+          <h2 className="text-3xl font-black text-amber-800 font-sans">{records.filter(r => r.date === new Date().toISOString().split("T")[0]).reduce((acc, r) => acc + (r.amount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-medium">₪</span></h2>
         </div>
       </div>
 
@@ -220,27 +296,27 @@ export default function POSPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posList.map((pos) => (
             <div key={pos.id} className="bg-white p-8 rounded-[36px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/40 transition-all duration-500 group">
-               <div className="flex justify-between items-start mb-6">
-                 <div>
-                   <h4 className="text-xl font-black text-gray-800 group-hover:text-amber-800 transition-colors">{pos.name}</h4>
-                   <p className="text-gray-400 text-sm font-bold mt-1">{pos.contact}</p>
-                 </div>
-                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${(pos.balance ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                   {(pos.balance ?? 0) >= 0 ? 'رصيد إيجابي' : 'مدين'}
-                 </span>
-               </div>
-               <div className="flex items-center justify-between mt-4">
-                 <div>
-                   <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">الرصيد الحالي</p>
-                   <p className={`text-2xl font-black font-sans ${(pos.balance ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(pos.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</p>
-                 </div>
-                 <button 
-                   onClick={() => fetchPosHistory(pos.id)}
-                   className="px-6 py-3 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-amber-800 hover:text-white transition-all shadow-sm"
-                 >
-                   عرض السجل الكامل
-                 </button>
-               </div>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h4 className="text-xl font-black text-gray-800 group-hover:text-amber-800 transition-colors">{pos.name}</h4>
+                  <p className="text-gray-400 text-sm font-bold mt-1">{pos.contact}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${(pos.balance ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  {(pos.balance ?? 0) >= 0 ? 'رصيد إيجابي' : 'مدين'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">الرصيد الحالي</p>
+                  <p className={`text-2xl font-black font-sans ${(pos.balance ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{(pos.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</p>
+                </div>
+                <button
+                  onClick={() => fetchPosHistory(pos.id)}
+                  className="px-6 py-3 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-amber-800 hover:text-white transition-all shadow-sm"
+                >
+                  عرض السجل الكامل
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -248,7 +324,7 @@ export default function POSPage() {
 
       <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-gray-50 bg-gray-50/30">
-           <h3 className="text-xl font-bold text-gray-800">سجل التوريدات</h3>
+          <h3 className="text-xl font-bold text-gray-800">سجل التوريدات</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right">
@@ -269,14 +345,14 @@ export default function POSPage() {
                     <p className="text-[10px] text-gray-400">{record.date}</p>
                   </td>
                   <td className="px-8 py-6">
-                     <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">{record.item}</span>
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">{record.item}</span>
                   </td>
                   <td className="px-8 py-6 font-black text-gray-800 font-sans">{(record.net ?? 0).toLocaleString('en-US')}</td>
                   <td className="px-8 py-6 font-black text-rose-600 font-sans">{record.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</td>
                   <td className="px-8 py-6">
-                      <span className="font-black text-emerald-600 text-lg font-sans">
-                        {(posList.find(p => p.id === record.pos_id)?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                      </span>
+                    <span className="font-black text-emerald-600 text-lg font-sans">
+                      {(posList.find(p => p.id === record.pos_id)?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -329,13 +405,13 @@ export default function POSPage() {
               </div>
               {quantityTaken && selectedItem && (
                 <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 flex justify-between items-center">
-                   <div className="text-right">
-                     <p className="font-bold text-emerald-900">إجمالي قيمة التوريد:</p>
-                     <p className="text-xs text-emerald-600">سيتم خصمها من رصيد نقطة البيع</p>
-                   </div>
-                   <p className="text-3xl font-black text-emerald-700 font-sans">
-                     {((Number(quantityTaken) - (Number(quantityReturned) || 0)) * (breadTypes.find(i => i.id === Number(selectedItem))?.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                   </p>
+                  <div className="text-right">
+                    <p className="font-bold text-emerald-900">إجمالي قيمة التوريد:</p>
+                    <p className="text-xs text-emerald-600">سيتم خصمها من رصيد نقطة البيع</p>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-700 font-sans">
+                    {((Number(quantityTaken) - (Number(quantityReturned) || 0)) * (breadTypes.find(i => i.id === Number(selectedItem))?.price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
                 </div>
               )}
               <div className="pt-4">
@@ -390,13 +466,78 @@ export default function POSPage() {
                 <input type="text" required value={newPOSName} onChange={(e) => setNewPOSName(e.target.value)}
                   className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black" placeholder="مثلاً: سوبر ماركت الهدى" />
               </div>
-              <div>
-                <label className="block text-sm font-black text-black mb-2 mr-1">رقم الهاتف / للتواصل</label>
-                <input type="text" required value={newPOSPhone} onChange={(e) => setNewPOSPhone(e.target.value)}
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-black" placeholder="05xxxxxxx" />
-              </div>
               <div className="pt-6">
                 <button type="submit" className="w-full py-5 bg-amber-800 text-white rounded-[24px] font-black text-lg hover:bg-amber-900 shadow-xl shadow-amber-900/30 transform active:scale-[0.98]">حفظ نقطة البيع</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showInventorySaleForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[48px] w-full max-w-xl p-10 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <h2 className="text-3xl font-black text-black">بيع صنف من المخزون</h2>
+              <button onClick={() => { setShowInventorySaleForm(false); resetForm(); }} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleInventorySale} className="space-y-6 text-right">
+              <div>
+                <label className="block text-sm font-black text-black mb-2 mr-1">نقطة البيع</label>
+                <select required value={selectedPOS} onChange={(e) => setSelectedPOS(e.target.value)}
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black text-right">
+                  <option value="">اختر النقطة...</option>
+                  {posList.map(p => <option key={p.id} value={p.id}>{p.name} (الرصيد: {(p.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪)</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الصنف</label>
+                  <select required value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black text-right">
+                    <option value="">اختر الصنف...</option>
+                    {inventory.map(i => <option key={i.id} value={i.id}>{i.name} ({i.stock} {i.unit})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-black text-black mb-2 mr-1">الكمية</label>
+                  <input type="number" required value={quantityTaken} onChange={(e) => setQuantityTaken(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 font-bold text-black text-center text-2xl" placeholder="0" />
+                </div>
+              </div>
+              {quantityTaken && selectedItem && selectedPOS && (
+                <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 flex justify-between items-center">
+                  <div className="text-right">
+                    <p className="font-bold text-blue-900">إجمالي قيمة البيع:</p>
+                    <p className="text-xs text-blue-600">سيتم خصمها من رصيد نقطة البيع</p>
+                  </div>
+                  <p className="text-3xl font-black text-blue-700 font-sans">
+                    {(10 * Number(quantityTaken)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                </div>
+              )}
+              {selectedItem && (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <p className="text-sm font-bold text-amber-800">
+                    المخزون المتاح: {inventory.find(i => i.id === Number(selectedItem))?.stock || 0} {inventory.find(i => i.id === Number(selectedItem))?.unit || ""}
+                  </p>
+                </div>
+              )}
+              {selectedPOS && (
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <p className="text-sm font-bold text-emerald-800">
+                    رصيد نقطة البيع: {(posList.find(p => p.id === Number(selectedPOS))?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                  </p>
+                </div>
+              )}
+              <div className="pt-4">
+                <button type="submit" className="w-full py-5 bg-blue-800 text-white rounded-[24px] font-black text-xl hover:bg-blue-900 transition-all shadow-xl shadow-blue-900/30 transform active:scale-[0.98]">
+                  تأكيد البيع وحفظ السجل
+                </button>
               </div>
             </form>
           </div>
@@ -413,8 +554,8 @@ export default function POSPage() {
               </div>
               <div className="flex items-center gap-4">
                 <button onClick={() => window.print()} className="px-6 py-4 bg-white border-2 border-gray-100 rounded-2xl font-black text-sm hover:bg-gray-100 transition-all flex items-center gap-2">
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2h6a2 2 0 002 2v4" /></svg>
-                   طباعة
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2h6a2 2 0 002 2v4" /></svg>
+                  طباعة
                 </button>
                 <button onClick={() => setShowStatement(false)} className="p-4 bg-gray-200/50 hover:bg-gray-200 rounded-2xl transition-all">
                   <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -423,49 +564,51 @@ export default function POSPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-10">
-               <table className="w-full text-right border-collapse">
-                 <thead>
-                   <tr className="text-gray-400 text-xs font-black uppercase tracking-widest border-b border-gray-100">
-                     <th className="pb-6 px-4">التاريخ</th>
-                     <th className="pb-6 px-4">نوع الحركة</th>
-                     <th className="pb-6 px-4">الصنف / الوصف</th>
-                     <th className="pb-6 px-4">الكمية</th>
-                     <th className="pb-6 px-4">القيمة</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-gray-50">
-                   {posTransactions.length > 0 ? posTransactions.map((tx) => (
-                     <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors font-sans">
-                       <td className="py-6 px-4 font-bold text-gray-500">{tx.date}</td>
-                       <td className="py-6 px-4">
-                         <span className={`px-4 py-2 rounded-xl text-xs font-black ${tx.type === 'supply' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
-                           {tx.type === 'supply' ? 'توريد خبز' : 'إيداع مالي'}
-                         </span>
-                       </td>
-                       <td className="py-6 px-4 font-black text-gray-800 font-regular">{tx.item}</td>
-                       <td className="py-6 px-4 font-black text-gray-800">{tx.quantity?.toLocaleString('en-US') || '-'}</td>
-                       <td className={`py-6 px-4 font-black text-lg ${tx.type === 'supply' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                         {tx.type === 'supply' ? '-' : '+'}{(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
-                       </td>
-                     </tr>
-                   )) : (
-                     <tr>
-                       <td colSpan={5} className="py-20 text-center text-gray-400 font-bold">لا توجد حركات مسجلة لهذه النقطة حتى الآن</td>
-                     </tr>
-                   )}
-                 </tbody>
-               </table>
+              <table className="w-full text-right border-collapse">
+                <thead>
+                  <tr className="text-gray-400 text-xs font-black uppercase tracking-widest border-b border-gray-100">
+                    <th className="pb-6 px-4">التاريخ</th>
+                    <th className="pb-6 px-4">نوع الحركة</th>
+                    <th className="pb-6 px-4">الصنف / الوصف</th>
+                    <th className="pb-6 px-4">الكمية</th>
+                    <th className="pb-6 px-4">القيمة</th>
+                    <th className="pb-6 px-4">الرصيد بعد الحركة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {posTransactions.length > 0 ? posTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors font-sans">
+                      <td className="py-6 px-4 font-bold text-gray-500">{tx.date}</td>
+                      <td className="py-6 px-4">
+                        <span className={`px-4 py-2 rounded-xl text-xs font-black ${tx.type === 'supply' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                          {tx.type === 'supply' ? 'توريد خبز' : 'إيداع مالي'}
+                        </span>
+                      </td>
+                      <td className="py-6 px-4 font-black text-gray-800 font-regular">{tx.item}</td>
+                      <td className="py-6 px-4 font-black text-gray-800">{tx.quantity?.toLocaleString('en-US') || '-'}</td>
+                      <td className={`py-6 px-4 font-black text-lg ${tx.type === 'supply' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {tx.type === 'supply' ? '-' : '+'}{(tx.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪
+                      </td>
+                      <td className="py-6 px-4 font-black text-gray-800">{typeof tx.balance_after === 'number' ? tx.balance_after.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₪' : '-'}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="py-20 text-center text-gray-400 font-bold">لا توجد حركات مسجلة لهذه النقطة حتى الآن</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
             <div className="p-10 bg-black text-white flex justify-between items-center rounded-t-[40px]">
-               <div className="text-right">
-                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">الرصيد الحالي في المحفظة</p>
-                 <h3 className="text-4xl font-black font-sans">{(posList.find(p => p.id === Number(selectedPOS))?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
-               </div>
-               <div className="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
-                 <p className="text-xs font-bold text-emerald-400 mb-1">حالة الحساب</p>
-                 <p className="text-xl font-black">نشط ومستقر</p>
-               </div>
+              <div className="text-right">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">الرصيد الحالي في المحفظة</p>
+                <h3 className="text-4xl font-black font-sans">{(posList.find(p => p.id === Number(selectedPOS))?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪</h3>
+              </div>
+              <div className="bg-white/10 p-6 rounded-3xl backdrop-blur-md">
+                <p className="text-xs font-bold text-emerald-400 mb-1">حالة الحساب</p>
+                <p className="text-xl font-black">نشط ومستقر</p>
+              </div>
             </div>
           </div>
         </div>
